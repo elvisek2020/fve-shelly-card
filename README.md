@@ -33,7 +33,7 @@ Konkrétní entity se mapují v YAML — karta není závislá na přesných ná
 1. Stáhni `shelly-3em-diagram-card.js` z posledního [release](../../releases)
 2. Zkopíruj do `/config/www/`
 3. Nastavení → Dashboardy → ⋮ → Zdroje → Přidat:
-   URL `/local/shelly-3em-diagram-card.js?v=0.2.0`, typ **JavaScript module**
+   URL `/local/shelly-3em-diagram-card.js?v=0.3.0`, typ **JavaScript module**
 
 ## Konfigurace
 
@@ -46,10 +46,12 @@ Ekvivalentní YAML:
 type: custom:shelly-3em-diagram-card
 title: DUB-1NP-FVE-AC-OUT
 phase_a:
+  name: FVE výstup
   voltage: sensor.dub_1nb_grid_ac_in_phase_a_napeti
   current: sensor.dub_1nb_grid_ac_in_phase_a_proud
   power: sensor.1np_vstupni_chodba_dub_1nb_grid_ac_in_phase_a_vykon
 phase_b:
+  name: Bojler
   voltage: sensor.dub_1nb_grid_ac_in_phase_b_napeti
   current: sensor.dub_1nb_grid_ac_in_phase_b_proud
   power: sensor.1np_vstupni_chodba_dub_1nb_grid_ac_in_phase_b_vykon
@@ -70,7 +72,7 @@ reset_button: button.dub_1nb_grid_ac_in_restart
 | Klíč | Povinné | Popis |
 | --- | --- | --- |
 | `title` | ne | Titulek v headeru |
-| `phase_a` / `phase_b` / `phase_c` | ano* | Objekty s `voltage`, `current`, `power` (entity ID) |
+| `phase_a` / `phase_b` / `phase_c` | ano* | Objekty s volitelným `name` + `voltage`, `current`, `power` |
 | `total_power` | ne | Celkový výkon — vpravo nahoře |
 | `total_energy` | ne | Celková energie — vpravo nahoře pod výkonem |
 | `neutral_current` | ne | Proud neutrálu — bez něj se CT clamp **TN** nezobrazí |
@@ -78,8 +80,10 @@ reset_button: button.dub_1nb_grid_ac_in_restart
 | `lan_link_speed` | ne | Rychlost LAN linky — LED **LAN** svítí; hover = rychlost |
 | `reset_button` | ne | Shelly `button.*` (reset/restart) — aktivuje klikací Reset s potvrzením |
 
-\* Alespoň jedna fáze s entitami dává smysl; chybějící entity se zobrazí jako `—` / `0`.
-CT clampy **TA / TB / TC** se zobrazí jen když je u fáze vyplněný proud nebo výkon.
+\* Alespoň jedna fáze s entitami dává smysl; chybějící entity se nezobrazí.
+Volitelný `name` se ukáže vedle „Napětí“ (LA/LB/LC) a nad proudem u CT (TA/TB/TC).
+Vstupní linky **LA / LB / LC** jen když je u fáze vyplněné napětí (pozice zůstávají).
+CT clampy **TA / TB / TC** jen když je vyplněný proud nebo výkon — dynamicky vycentrované.
 
 **Připojení:** vyplněný `wifi_signal` = Wi-Fi (žlutá LED svítí, hover = síla); vyplněný `lan_link_speed` = LAN (zelená LED svítí, hover = rychlost). Obě entity mohou být nastavené zároveň.
 

@@ -74,7 +74,7 @@ const CT_SIZE = 50;
 
 /**
  * Vstupní linky — tři rovnoběžky; do svorek C/A/B jako u IA/IC (bokem).
- * C/A zleva, B mezi A–B nahoru/dolů a zleva do B.
+ * Napětí + custom name na jednom řádku; hodnota a vodič vpravo.
  */
 const PHASE_LINE_STEP = 36;
 const PHASE_LINES: Array<{
@@ -107,11 +107,14 @@ const PHASE_LINES: Array<{
   },
 ];
 
-/** CT clampy TC / TB / TA — posunuté o 40 px nahoru, velikost 50×50. */
+/** CT clampy TC / TB / TA — níž, ať nekolidují s horními fázemi / custom name. */
+const CLAMP_Y = 340;
+const CLAMP_CENTER_X = 200;
+const CLAMP_STEP = 110;
+
 const CLAMPS: Array<{
   key: PhaseKey;
   label: string;
-  x: number;
   y: number;
   termX: number;
   termY: number;
@@ -122,21 +125,20 @@ const CLAMPS: Array<{
   route: 'side' | 'around-right';
   busY?: number;
 }> = [
-  { key: 'c', label: 'TC', x: 90, y: 285, termX: TERM.leftX, termY: TERM.icinY, route: 'side' },
+  { key: 'c', label: 'TC', y: CLAMP_Y, termX: TERM.leftX, termY: TERM.icinY, route: 'side' },
   {
     key: 'b',
     label: 'TB',
-    x: 200,
-    y: 285,
+    y: CLAMP_Y,
     termX: TERM.rightX,
     termY: TERM.iaibY,
     route: 'around-right',
     busY: 530,
   },
-  { key: 'a', label: 'TA', x: 310, y: 285, termX: TERM.leftX, termY: TERM.iaibY, route: 'side' },
+  { key: 'a', label: 'TA', y: CLAMP_Y, termX: TERM.leftX, termY: TERM.iaibY, route: 'side' },
 ];
 
-const TN = { x: 580, y: 285, termX: TERM.rightX, termY: TERM.icinY, route: 'side' as const };
+const TN = { x: 580, y: CLAMP_Y, termX: TERM.rightX, termY: TERM.icinY, route: 'side' as const };
 
 @customElement('shelly-3em-diagram-card')
 export class Shelly3emDiagramCard extends LitElement {
@@ -188,6 +190,23 @@ export class Shelly3emDiagramCard extends LitElement {
     return this._filled(p?.current) || this._filled(p?.power);
   }
 
+  /** Vstupní linka napětí (LA/LB/LC) jen když je vyplněné napětí. */
+  private _showPhaseLine(key: PhaseKey): boolean {
+    return this._filled(this._phase(key)?.voltage);
+  }
+
+  /**
+   * Aktivní CT clampy s X vycentrovaným podle počtu:
+   * 3 → 90/200/310, 2 → 145/255, 1 → 200 (střed jako TB).
+   */
+  private _layoutPhaseClamps(): Array<(typeof CLAMPS)[number] & { x: number }> {
+    const visible = CLAMPS.filter((c) => this._showPhaseClamp(c.key));
+    const n = visible.length;
+    if (n === 0) return [];
+    const start = CLAMP_CENTER_X - ((n - 1) * CLAMP_STEP) / 2;
+    return visible.map((c, i) => ({ ...c, x: start + i * CLAMP_STEP }));
+  }
+
   private _onValueClick(entityId: string | undefined, ev: Event): void {
     ev.stopPropagation();
     moreInfo(this, entityId);
@@ -227,7 +246,9 @@ export class Shelly3emDiagramCard extends LitElement {
     return html`
       <ha-card>
         <div class="header">
-          <div class="title">${title}</div>
+          <div class="header-main">
+            <div class="title">${title}</div>
+          </div>
           ${totalP || totalE
             ? html`<div class="totals">
                 ${totalP
@@ -264,6 +285,9 @@ export class Shelly3emDiagramCard extends LitElement {
     const div3 = my + mh - 116;
     const div4 = my + mh - 64;
     const nEnd = this._wireEnd(TERM.rightX, TERM.cnY, 'right');
+    // LN u Shelly; vodič doprava (TN je níž, nahoře je volno) + popis na konci.
+    const nWireOut = VB.w - 12;
+    const nLabelLnX = nEnd.x + 22;
 
     return html`
       <svg
@@ -279,16 +303,31 @@ export class Shelly3emDiagramCard extends LitElement {
         ${svg`<line class="meter-div" x1=${mx} y1=${div4} x2=${mx + mw} y2=${div4} />`}
 
         <!-- Horní vodiče až po meteru — viditelné na čele jako IA/IC -->
-        ${PHASE_LINES.map((line) => this._renderPhaseLine(line))}
+        ${PHASE_LINES.filter((line) => this._showPhaseLine(line.key)).map((line) =>
+          this._renderPhaseLine(line),
+        )}
 
-        <!-- LN (nulák) — zprava do N, jako TN→IN -->
+        <!-- LN — do svorky N; na pravém konci vodiče „Nulový vodič“ -->
         ${svg`<path
           class="wire"
           fill="none"
           stroke=${NEUTRAL_COLOR}
-          d=${`M 655 ${TERM.cnY} L ${nEnd.x} ${nEnd.y}`}
+          d=${`M ${nWireOut} ${TERM.cnY} L ${nEnd.x} ${nEnd.y}`}
         />`}
-        ${svg`<text class="label label-n" x="620" y=${TERM.cnY - 10} text-anchor="middle" fill=${NEUTRAL_COLOR}>LN</text>`}
+        ${svg`<text
+          class="label"
+          x=${nLabelLnX}
+          y=${TERM.cnY - 10}
+          text-anchor="start"
+          fill=${NEUTRAL_COLOR}
+        >LN</text>`}
+        ${svg`<text
+          class="phase-name"
+          x=${nWireOut}
+          y=${TERM.cnY - 10}
+          text-anchor="end"
+          fill=${NEUTRAL_COLOR}
+        >Nulový vodič</text>`}
 
         <!-- Horní svorky až po vodičích -->
         ${this._terminal(TERM.leftX, TERM.cnY, 'C', PHASE_COLOR.c)}
@@ -299,7 +338,7 @@ export class Shelly3emDiagramCard extends LitElement {
         ${this._renderStatusPanel(mx + mw / 2, div2 + 20)}
 
         ${this._renderClampRowCaptions()}
-        ${CLAMPS.map((c) => this._renderPhaseClamp(c))}
+        ${this._layoutPhaseClamps().map((c) => this._renderPhaseClamp(c))}
         ${this._renderNeutralClamp()}
 
         <!-- Spodní svorky až po vodičích — text nepřekryje linka -->
@@ -360,9 +399,12 @@ export class Shelly3emDiagramCard extends LitElement {
     ];
     const rowH = 32;
     const resetR = 28;
-    const gapAfterCount = 52;
+    const gapAfterCount = 56;
     const countY = topY + (leds.length - 1) * rowH;
-    const resetCy = countY + gapAfterCount + resetR;
+    const resetTop = countY + gapAfterCount;
+    // Baseline uprostřed mezery Count ↔ horní okraj Reset (+ drobný optický posun).
+    const shellyY = (countY + resetTop) / 2 + 6;
+    const resetCy = resetTop + resetR;
     const resetLive = this._filled(this._config?.reset_button);
 
     return svg`
@@ -399,11 +441,10 @@ export class Shelly3emDiagramCard extends LitElement {
               <circle class="led off" cx=${lx} cy=${cy} r="6.5" />
             `;
           }
-          const cls = 'led lit';
           return svg`
             <text class="led-label" x=${cx - 44} y=${topY + i * rowH}>${led.name}</text>
             <circle
-              class=${cls}
+              class="led lit"
               cx=${lx}
               cy=${cy}
               r="6.5"
@@ -415,6 +456,7 @@ export class Shelly3emDiagramCard extends LitElement {
             </circle>
           `;
         })}
+        <text class="shelly-brand" x=${cx} y=${shellyY} text-anchor="middle">Shelly</text>
         <g
           class="reset-group ${resetLive ? 'live' : ''}"
           role=${resetLive ? 'button' : nothing}
@@ -487,13 +529,22 @@ export class Shelly3emDiagramCard extends LitElement {
     }
   }
 
+  private _phaseName(key: PhaseKey): string | undefined {
+    const name = this._phase(key)?.name;
+    if (typeof name !== 'string') return undefined;
+    const t = name.trim();
+    return t.length > 0 ? t : undefined;
+  }
+
   private _renderPhaseLine(line: (typeof PHASE_LINES)[number]): SVGTemplateResult {
     const phase = this._phase(line.key);
+    const customName = this._phaseName(line.key);
     const vText = formatVoltage(toNum(this.hass, phase?.voltage));
     const color = PHASE_COLOR[line.key];
-    // Vodič začíná u hodnoty napětí (text je těsně nad linkou).
-    const valueX = 68;
-    const wireStart = 64;
+    // Napětí (+ name) vlevo; hodnota ve stejném středu jako TB (CLAMP_CENTER_X).
+    // Vodič jako spodní linka pod celým textem Napětí + custom name.
+    const valueX = CLAMP_CENTER_X;
+    const wireStart = 14;
     const labelX = M.x - 18;
     // Stejný princip jako IA/IC: svisle na výšku svorky, pak vodorovně z boku.
     const riserX = M.x - 12;
@@ -526,10 +577,14 @@ export class Shelly3emDiagramCard extends LitElement {
       <g class="phase-line">
         <path class="wire" fill="none" stroke=${color} d=${path} />
         <text class="caption" x="14" y=${line.y - 10}>Napětí</text>
+        ${customName
+          ? svg`<text class="phase-name" x="58" y=${line.y - 10} fill=${color}>${customName}</text>`
+          : nothing}
         <text
           class="value clickable"
           x=${valueX}
           y=${line.y - 10}
+          text-anchor="middle"
           fill=${color}
           @click=${(e: Event) => this._onValueClick(phase?.voltage, e)}
         >
@@ -545,21 +600,21 @@ export class Shelly3emDiagramCard extends LitElement {
   /** Společné popisky Proud / Výkon vlevo od sloupců CT. */
   private _renderClampRowCaptions(): SVGTemplateResult | typeof nothing {
     const anyClamp =
-      CLAMPS.some((c) => this._showPhaseClamp(c.key)) || this._filled(this._config?.neutral_current);
+      this._layoutPhaseClamps().length > 0 || this._filled(this._config?.neutral_current);
     if (!anyClamp) return nothing;
-    const y = CLAMPS[0].y;
     return svg`
       <g class="clamp-captions">
-        <text class="caption" x="14" y=${y - 70}>Proud</text>
-        <text class="caption" x="14" y=${y - 44}>Výkon</text>
+        <text class="caption" x="14" y=${CLAMP_Y - 72}>Proud</text>
+        <text class="caption" x="14" y=${CLAMP_Y - 46}>Výkon</text>
       </g>
     `;
   }
 
-  private _renderPhaseClamp(c: (typeof CLAMPS)[number]): SVGTemplateResult | typeof nothing {
-    if (!this._showPhaseClamp(c.key)) return nothing;
-
+  private _renderPhaseClamp(
+    c: (typeof CLAMPS)[number] & { x: number },
+  ): SVGTemplateResult {
     const phase = this._phase(c.key);
+    const customName = this._phaseName(c.key);
     const current = toNum(this.hass, phase?.current);
     const power = toNum(this.hass, phase?.power);
     const color = PHASE_COLOR[c.key];
@@ -569,12 +624,15 @@ export class Shelly3emDiagramCard extends LitElement {
     return svg`
       <g class="phase-clamp">
         <path class="wire" fill="none" stroke=${color} d=${path} />
+        ${customName
+          ? svg`<text class="phase-name" x=${c.x} y=${c.y - 102} text-anchor="middle" fill=${color}>${customName}</text>`
+          : nothing}
         ${this._filled(phase?.current)
           ? svg`
               <text
                 class="value clickable"
                 x=${c.x}
-                y=${c.y - 70}
+                y=${c.y - 72}
                 text-anchor="middle"
                 fill=${color}
                 @click=${(e: Event) => this._onValueClick(phase?.current, e)}
@@ -588,7 +646,7 @@ export class Shelly3emDiagramCard extends LitElement {
               <text
                 class="value clickable"
                 x=${c.x}
-                y=${c.y - 44}
+                y=${c.y - 46}
                 text-anchor="middle"
                 fill=${color}
                 @click=${(e: Event) => this._onValueClick(phase?.power, e)}
@@ -662,11 +720,11 @@ export class Shelly3emDiagramCard extends LitElement {
     return svg`
       <g class="neutral-clamp">
         <path class="wire" fill="none" stroke=${NEUTRAL_COLOR} d=${path} />
-        <text class="caption" x=${TN.x} y=${TN.y - 70} text-anchor="middle">Proud</text>
+        <text class="caption" x=${TN.x} y=${TN.y - 72} text-anchor="middle">Proud</text>
         <text
           class="value clickable"
           x=${TN.x}
-          y=${TN.y - 44}
+          y=${TN.y - 46}
           text-anchor="middle"
           fill=${NEUTRAL_COLOR}
           @click=${(e: Event) => this._onValueClick(entityId, e)}
@@ -738,27 +796,28 @@ export class Shelly3emDiagramCard extends LitElement {
     }
 
     .header {
-      position: relative;
       display: flex;
       align-items: flex-start;
-      justify-content: flex-end;
       min-height: 2.4em;
       padding: 0 12px 4px;
       gap: 12px;
     }
 
+    .header-main {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+    }
+
     .title {
-      position: absolute;
-      left: 50%;
-      top: 0;
-      transform: translateX(-50%);
-      max-width: calc(100% - 200px);
+      max-width: 100%;
       text-align: center;
       font-size: 1.25rem;
       font-weight: 600;
       letter-spacing: 0.01em;
       color: var(--primary-text-color, #fff);
-      pointer-events: none;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -859,6 +918,14 @@ export class Shelly3emDiagramCard extends LitElement {
       letter-spacing: 0.02em;
     }
 
+    .phase-name {
+      font-size: 11px;
+      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      opacity: 0.92;
+    }
+
     .value {
       font-size: 13px;
       font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -901,6 +968,17 @@ export class Shelly3emDiagramCard extends LitElement {
 
     .led-count {
       filter: drop-shadow(0 0 4px #ff5252);
+    }
+
+    .shelly-brand {
+      fill: rgba(255, 255, 255, 0.78);
+      font-size: 20px;
+      font-family: 'Segoe Script', 'Snell Roundhand', 'Apple Chancery', 'Brush Script MT', cursive;
+      font-style: italic;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      pointer-events: none;
+      user-select: none;
     }
 
     .reset-btn {

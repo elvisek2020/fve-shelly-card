@@ -8,6 +8,7 @@ const BUTTON = { entity: { domain: 'button' } };
 const TEXT = { text: {} };
 
 const PHASE_SCHEMA = [
+  { name: 'name', selector: TEXT, custom_label: 'Název fáze' },
   { name: 'voltage', selector: ENTITY, custom_label: 'Napětí (V)' },
   { name: 'current', selector: ENTITY, custom_label: 'Proud (A)' },
   { name: 'power', selector: ENTITY, custom_label: 'Výkon (W)' },
@@ -96,6 +97,7 @@ const LABELS: Record<string, string> = {
   voltage: 'Napětí (V)',
   current: 'Proud (A)',
   power: 'Výkon (W)',
+  name: 'Název fáze',
   total_power: 'Celkový výkon (W)',
   total_energy: 'Celková energie (kWh)',
   neutral_current: 'Proud neutrálu (A)',
@@ -105,9 +107,10 @@ const LABELS: Record<string, string> = {
 };
 
 const HELPERS: Record<string, string> = {
-  title: 'Zobrazí se vlevo nahoře na kartě (např. DUB-1NP-FVE-AC-OUT).',
-  voltage: 'Sensor napětí dané fáze ze Shelly Pro 3EM.',
-  current: 'Sensor proudu dané fáze — bez něj se CT clamp (TA/TB/TC) nezobrazí.',
+  title: 'Zobrazí se uprostřed nahoře na kartě (např. DUB-1NP-FVE-AC-OUT).',
+  name: 'Volitelné — vedle „Napětí“ u LA/LB/LC a nad proudem u TA/TB/TC.',
+  voltage: 'Sensor napětí dané fáze ze Shelly Pro 3EM. Bez něj se vstupní linka nezobrazí.',
+  current: 'Sensor proudu dané fáze — bez něj (a bez výkonu) se CT clamp (TA/TB/TC) nezobrazí.',
   power: 'Sensor aktivního výkonu dané fáze — stačí i bez proudu pro zobrazení clampu.',
   total_power: 'Volitelné — zobrazí se vpravo nahoře (řádek Výkon).',
   total_energy: 'Volitelné — zobrazí se vpravo nahoře pod výkonem (řádek Energie).',

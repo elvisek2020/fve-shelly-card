@@ -20,6 +20,8 @@ export interface HomeAssistant {
 
 /** Entity jedné fáze (A / B / C). */
 export interface PhaseConfig {
+  /** Volitelný vlastní název (vedle Napětí / nad proudem u CT). */
+  name?: string;
   /** Napětí (V). */
   voltage?: string;
   /** Proud (A). */
