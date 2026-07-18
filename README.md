@@ -33,9 +33,14 @@ Konkrétní entity se mapují v YAML — karta není závislá na přesných ná
 1. Stáhni `shelly-3em-diagram-card.js` z posledního [release](../../releases)
 2. Zkopíruj do `/config/www/`
 3. Nastavení → Dashboardy → ⋮ → Zdroje → Přidat:
-   URL `/local/shelly-3em-diagram-card.js?v=0.1.0`, typ **JavaScript module**
+   URL `/local/shelly-3em-diagram-card.js?v=0.2.0`, typ **JavaScript module**
 
 ## Konfigurace
+
+Kartu přidej přes výběr karet (**Shelly 3EM Diagram Card**) a nastav entity
+ve vizuálním editoru (entity pickery pro fáze A/B/C + volitelné součty).
+
+Ekvivalentní YAML:
 
 ```yaml
 type: custom:shelly-3em-diagram-card
@@ -54,6 +59,10 @@ phase_c:
   power: sensor.1np_vstupni_chodba_dub_1nb_grid_ac_in_phase_c_vykon
 total_power: sensor.1np_vstupni_chodba_dub_1nb_grid_ac_in_vykon
 total_energy: sensor.1np_vstupni_chodba_dub_1nb_grid_ac_in_energie
+# Wi-Fi vs LAN — podle vyplněných entit (lze i obě najednou):
+wifi_signal: sensor.dub_1nb_grid_ac_in_rssi
+lan_link_speed: sensor.dub_1nb_grid_ac_in_ethernet
+reset_button: button.dub_1nb_grid_ac_in_restart
 ```
 
 ### Položky konfigurace
@@ -62,17 +71,24 @@ total_energy: sensor.1np_vstupni_chodba_dub_1nb_grid_ac_in_energie
 | --- | --- | --- |
 | `title` | ne | Titulek v headeru |
 | `phase_a` / `phase_b` / `phase_c` | ano* | Objekty s `voltage`, `current`, `power` (entity ID) |
-| `total_power` | ne | Celkový výkon v headeru |
-| `total_energy` | ne | Celková energie v headeru |
+| `total_power` | ne | Celkový výkon — vpravo nahoře |
+| `total_energy` | ne | Celková energie — vpravo nahoře pod výkonem |
+| `neutral_current` | ne | Proud neutrálu — bez něj se CT clamp **TN** nezobrazí |
+| `wifi_signal` | ne | Síla Wi-Fi (RSSI) — LED **Wi-Fi** svítí; hover = síla signálu |
+| `lan_link_speed` | ne | Rychlost LAN linky — LED **LAN** svítí; hover = rychlost |
+| `reset_button` | ne | Shelly `button.*` (reset/restart) — aktivuje klikací Reset s potvrzením |
 
 \* Alespoň jedna fáze s entitami dává smysl; chybějící entity se zobrazí jako `—` / `0`.
+CT clampy **TA / TB / TC** se zobrazí jen když je u fáze vyplněný proud nebo výkon.
+
+**Připojení:** vyplněný `wifi_signal` = Wi-Fi (žlutá LED svítí, hover = síla); vyplněný `lan_link_speed` = LAN (zelená LED svítí, hover = rychlost). Obě entity mohou být nastavené zároveň.
 
 ## Omezení
 
-- Tlačítko **Reset** a LED indikátory Power / Wi-Fi / LAN / Count jsou **dekorativní** (vizuální shoda s Shelly Cloud), nevolají žádnou HA službu.
+- LED **Power** svítí vždy; **Count** pulsuje podle |výkonu|; **Wi-Fi** / **LAN** svítí trvale (hover = hodnota) — jen když jsou v configu příslušné entity.
+- Tlačítko **Reset** je aktivní jen když je v configu `reset_button` (`button.*`) —
+  po kliknutí se zobrazí potvrzení a pak se volá `button.press`.
 - Zdánlivý výkon (VA) se **nezobrazuje**.
-- GUI editor zatím není — konfigurace jen přes YAML.
-- Ikony signálu / Wi-Fi v headeru jsou statické.
 
 ## Vývoj
 

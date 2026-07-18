@@ -1,15 +1,19 @@
-import { LitElement, html, css, nothing, type TemplateResult } from 'lit';
+import { LitElement, html, css, svg, nothing, type TemplateResult, type SVGTemplateResult } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import type { HomeAssistant, PhaseConfig, Shelly3emDiagramCardConfig } from './types';
 import {
   clampPulseDuration,
+  countBlinkDuration,
   formatCurrent,
   formatEnergy,
+  formatEntityValue,
   formatPower,
   formatVoltage,
   moreInfo,
   toNum,
 } from './utils';
+import { openConfirmDialog } from './confirm-dialog';
+import './editor';
 
 /** Nahrazuje Rollup replace z package.json version. */
 const CARD_VERSION = '__CARD_VERSION__';
@@ -38,64 +42,101 @@ const STUB: Shelly3emDiagramCardConfig = {
 
 type PhaseKey = 'a' | 'b' | 'c';
 
-interface PhaseLayout {
-  key: PhaseKey;
-  /** Popisek vstupu (LA/LB/LC). */
-  lineLabel: string;
-  /** Popisek CT clampu (TA/TB/TC). */
-  clampLabel: string;
-  /** Y vstupní vodorovné linky. */
-  lineY: number;
-  /** X středu CT clampu. */
-  clampX: number;
-  /** Svorka fáze nahoře (A/B/C) — X uvnitř meteru. */
-  termX: number;
-  /** Svorka výstupu CT (IA/IB/IC). */
-  outTerm: string;
-  outTermX: number;
-  outTermY: number;
-}
+/** CZ/EU barvy vodičů — na tmavém pozadí je „černá“ fáze světlejší grafit. */
+const PHASE_COLOR: Record<PhaseKey, string> = {
+  a: '#c4783a', // hnědá (L1 / LA)
+  b: '#90a4ae', // černá → grafit (L2 / LB)
+  c: '#b0bec5', // šedá (L3 / LC)
+};
+const NEUTRAL_COLOR = '#42a5f5';
+const SHELLY_BLUE = '#1e88e5';
 
 /**
- * Layout viewBox 560×400 — měřítko odpovídá Shelly Cloud Diagram view.
- * Meter blok je vpravo od středu; CT clampy dole vlevo; TN vpravo.
+ * Layout podle Shelly Cloud Diagram view (viewBox 680×600).
+ * Meter záměrně vyšší — Reset nesmí zasahovat do Count.
  */
-const METER = { x: 300, y: 48, w: 100, h: 280 };
-const PHASES: PhaseLayout[] = [
+const VB = { w: 680, h: 600 };
+
+const M = { x: 380, y: 24, w: 128, h: 470 };
+
+const TERM = {
+  leftX: M.x + 36,
+  rightX: M.x + 92,
+  cnY: M.y + 32,
+  abY: M.y + 82,
+  iaibY: M.y + M.h - 78,
+  icinY: M.y + M.h - 32,
+  tw: 42,
+  th: 36,
+};
+
+const CT_SIZE = 50;
+
+/**
+ * Vstupní linky — tři rovnoběžky; do svorek C/A/B jako u IA/IC (bokem).
+ * C/A zleva, B mezi A–B nahoru/dolů a zleva do B.
+ */
+const PHASE_LINE_STEP = 36;
+const PHASE_LINES: Array<{
+  key: PhaseKey;
+  label: string;
+  y: number;
+  termX: number;
+  termY: number;
+}> = [
   {
     key: 'c',
-    lineLabel: 'LC',
-    clampLabel: 'TC',
-    lineY: 78,
-    clampX: 70,
-    termX: METER.x + 28,
-    outTerm: 'IC',
-    outTermX: METER.x + 28,
-    outTermY: METER.y + METER.h - 28,
+    label: 'LC',
+    y: TERM.cnY,
+    termX: TERM.leftX,
+    termY: TERM.cnY,
   },
   {
     key: 'b',
-    lineLabel: 'LB',
-    clampLabel: 'TB',
-    lineY: 118,
-    clampX: 150,
-    termX: METER.x + 72,
-    outTerm: 'IB',
-    outTermX: METER.x + 72,
-    outTermY: METER.y + METER.h - 68,
+    label: 'LB',
+    y: TERM.cnY + PHASE_LINE_STEP,
+    termX: TERM.rightX,
+    termY: TERM.abY,
   },
   {
     key: 'a',
-    lineLabel: 'LA',
-    clampLabel: 'TA',
-    lineY: 158,
-    clampX: 230,
-    termX: METER.x + 28,
-    outTerm: 'IA',
-    outTermX: METER.x + 28,
-    outTermY: METER.y + METER.h - 68,
+    label: 'LA',
+    y: TERM.cnY + 2 * PHASE_LINE_STEP,
+    termX: TERM.leftX,
+    termY: TERM.abY,
   },
 ];
+
+/** CT clampy TC / TB / TA — posunuté o 40 px nahoru, velikost 50×50. */
+const CLAMPS: Array<{
+  key: PhaseKey;
+  label: string;
+  x: number;
+  y: number;
+  termX: number;
+  termY: number;
+  /**
+   * side = vodorovně do svorky (TA→IA, TC→IC).
+   * around-right = IB doprava → dolů → spodkem → nahoru k TB (obchází IN).
+   */
+  route: 'side' | 'around-right';
+  busY?: number;
+}> = [
+  { key: 'c', label: 'TC', x: 90, y: 285, termX: TERM.leftX, termY: TERM.icinY, route: 'side' },
+  {
+    key: 'b',
+    label: 'TB',
+    x: 200,
+    y: 285,
+    termX: TERM.rightX,
+    termY: TERM.iaibY,
+    route: 'around-right',
+    busY: 530,
+  },
+  { key: 'a', label: 'TA', x: 310, y: 285, termX: TERM.leftX, termY: TERM.iaibY, route: 'side' },
+];
+
+const TN = { x: 580, y: 285, termX: TERM.rightX, termY: TERM.icinY, route: 'side' as const };
 
 @customElement('shelly-3em-diagram-card')
 export class Shelly3emDiagramCard extends LitElement {
@@ -104,7 +145,16 @@ export class Shelly3emDiagramCard extends LitElement {
   @state() private _config?: Shelly3emDiagramCardConfig;
 
   public static getStubConfig(): Shelly3emDiagramCardConfig {
-    return { ...STUB, phase_a: { ...STUB.phase_a }, phase_b: { ...STUB.phase_b }, phase_c: { ...STUB.phase_c } };
+    return {
+      ...STUB,
+      phase_a: { ...STUB.phase_a },
+      phase_b: { ...STUB.phase_b },
+      phase_c: { ...STUB.phase_c },
+    };
+  }
+
+  public static async getConfigElement(): Promise<HTMLElement> {
+    return document.createElement('shelly-3em-diagram-card-editor');
   }
 
   public setConfig(config: Shelly3emDiagramCardConfig): void {
@@ -113,11 +163,11 @@ export class Shelly3emDiagramCard extends LitElement {
   }
 
   public getCardSize(): number {
-    return 8;
+    return 9;
   }
 
   public getGridOptions(): Record<string, unknown> {
-    return { columns: 12, rows: 6, min_rows: 4 };
+    return { columns: 12, rows: 7, min_rows: 5 };
   }
 
   private _phase(key: PhaseKey): PhaseConfig | undefined {
@@ -127,9 +177,38 @@ export class Shelly3emDiagramCard extends LitElement {
     return this._config.phase_c;
   }
 
+  /** Entita je „vyplněná“ v configu (neprázdný string). */
+  private _filled(entityId?: string): boolean {
+    return typeof entityId === 'string' && entityId.trim().length > 0;
+  }
+
+  /** CT clamp fáze jen když je vyplněný proud nebo výkon. */
+  private _showPhaseClamp(key: PhaseKey): boolean {
+    const p = this._phase(key);
+    return this._filled(p?.current) || this._filled(p?.power);
+  }
+
   private _onValueClick(entityId: string | undefined, ev: Event): void {
     ev.stopPropagation();
     moreInfo(this, entityId);
+  }
+
+  /** Reset Shelly přes button.press — nejdřív potvrzovací dialog. */
+  private async _onResetClick(ev: Event): Promise<void> {
+    ev.stopPropagation();
+    const entityId = this._config?.reset_button;
+    if (!this._filled(entityId) || !this.hass?.callService) return;
+
+    const confirmed = await openConfirmDialog({
+      title: 'Resetovat Shelly Pro 3EM?',
+      message:
+        'Zařízení se restartuje (Shelly Reset). Měření může na chvíli výpadnout. Opravdu pokračovat?',
+      confirmLabel: 'Resetovat',
+      accent: '#ff8a65',
+    });
+    if (!confirmed) return;
+
+    await this.hass.callService('button', 'press', { entity_id: entityId });
   }
 
   protected render(): TemplateResult {
@@ -148,45 +227,31 @@ export class Shelly3emDiagramCard extends LitElement {
     return html`
       <ha-card>
         <div class="header">
-          <div class="header-left">
-            <div class="title">${title}</div>
-            ${totalP || totalE
-              ? html`<div class="totals">
-                  ${totalP
-                    ? html`<button
-                        class="value-btn"
-                        type="button"
-                        @click=${(e: Event) => this._onValueClick(this._config!.total_power, e)}
-                      >
-                        ${totalP}
-                      </button>`
-                    : nothing}
-                  ${totalE
-                    ? html`<button
-                        class="value-btn"
-                        type="button"
-                        @click=${(e: Event) => this._onValueClick(this._config!.total_energy, e)}
-                      >
-                        ${totalE}
-                      </button>`
-                    : nothing}
-                </div>`
-              : nothing}
-          </div>
-          <div class="header-icons" aria-hidden="true">
-            <svg class="status-icon" viewBox="0 0 24 24" width="18" height="18">
-              <path
-                fill="currentColor"
-                d="M12 3C7.5 3 3.5 5.1 1 8.3l1.6 1.6C4.7 7.5 8.1 6 12 6s7.3 1.5 9.4 3.9L23 8.3C20.5 5.1 16.5 3 12 3zm0 6c-2.7 0-5.1 1-7 2.6L6.6 13C8 11.8 9.9 11 12 11s4 0.8 5.4 2l1.6-1.4C17.1 10 14.7 9 12 9zm0 6c-1.2 0-2.3.4-3.2 1.1L12 21l3.2-4.9C14.3 15.4 13.2 15 12 15z"
-              />
-            </svg>
-            <svg class="status-icon" viewBox="0 0 24 24" width="18" height="18">
-              <path
-                fill="currentColor"
-                d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8l3 3 3-3c-1.65-1.66-4.34-1.66-6 0zm-4-4l2 2c2.76-2.76 7.24-2.76 10 0l2-2C15.14 9.14 8.87 9.14 5 13z"
-              />
-            </svg>
-          </div>
+          <div class="title">${title}</div>
+          ${totalP || totalE
+            ? html`<div class="totals">
+                ${totalP
+                  ? html`<button
+                      class="value-btn"
+                      type="button"
+                      @click=${(e: Event) => this._onValueClick(this._config!.total_power, e)}
+                    >
+                      <span class="caption">Výkon</span>
+                      <span class="num">${totalP}</span>
+                    </button>`
+                  : nothing}
+                ${totalE
+                  ? html`<button
+                      class="value-btn"
+                      type="button"
+                      @click=${(e: Event) => this._onValueClick(this._config!.total_energy, e)}
+                    >
+                      <span class="caption">Energie</span>
+                      <span class="num">${totalE}</span>
+                    </button>`
+                  : nothing}
+              </div>`
+            : nothing}
         </div>
         <div class="diagram">${this._renderSvg()}</div>
       </ha-card>
@@ -194,177 +259,465 @@ export class Shelly3emDiagramCard extends LitElement {
   }
 
   private _renderSvg(): TemplateResult {
-    const mx = METER.x;
-    const my = METER.y;
-    const mw = METER.w;
-    const mh = METER.h;
-
-    // Svorky: C/N nahoře, A/B pod nimi, IA/IB, IC/IN dole
-    const termCN_Y = my + 22;
-    const termAB_Y = my + 62;
-    const termIAIB_Y = my + mh - 68;
-    const termICIN_Y = my + mh - 28;
-
-    const tnX = mx + mw + 70;
-    const tnY = 250;
-    const wireBottom = 340;
+    const { x: mx, y: my, w: mw, h: mh } = M;
+    const div2 = my + 116;
+    const div3 = my + mh - 116;
+    const div4 = my + mh - 64;
+    const nEnd = this._wireEnd(TERM.rightX, TERM.cnY, 'right');
 
     return html`
-      <svg viewBox="0 0 560 400" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Shelly Pro 3EM diagram">
-        <!-- Vstupní fáze LC / LB / LA -->
-        ${PHASES.map((p) => this._renderPhaseInput(p))}
+      <svg
+        viewBox="0 0 ${VB.w} ${VB.h}"
+        xmlns="http://www.w3.org/2000/svg"
+        role="img"
+        aria-label="Shelly Pro 3EM diagram"
+      >
+        ${svg`<rect class="meter" x=${mx} y=${my} width=${mw} height=${mh} rx="3" />`}
+        <!-- Jen jedna linka nad Power (mezi svorkami A/B/C/N a statusem) -->
+        ${svg`<line class="meter-div" x1=${mx} y1=${div2} x2=${mx + mw} y2=${div2} />`}
+        ${svg`<line class="meter-div" x1=${mx} y1=${div3} x2=${mx + mw} y2=${div3} />`}
+        ${svg`<line class="meter-div" x1=${mx} y1=${div4} x2=${mx + mw} y2=${div4} />`}
 
-        <!-- LN výstup z N doprava -->
-        <line class="wire" x1=${mx + 72} y1=${termCN_Y} x2="520" y2=${termCN_Y} />
-        <text class="label" x="500" y=${termCN_Y - 8} text-anchor="end">LN</text>
+        <!-- Horní vodiče až po meteru — viditelné na čele jako IA/IC -->
+        ${PHASE_LINES.map((line) => this._renderPhaseLine(line))}
 
-        <!-- Meter body -->
-        <rect class="meter" x=${mx} y=${my} width=${mw} height=${mh} rx="4" />
-
-        <!-- Vnitřní oddělovače -->
-        <line class="meter-div" x1=${mx} y1=${my + 42} x2=${mx + mw} y2=${my + 42} />
-        <line class="meter-div" x1=${mx} y1=${my + 82} x2=${mx + mw} y2=${my + 82} />
-        <line class="meter-div" x1=${mx} y1=${my + mh - 88} x2=${mx + mw} y2=${my + mh - 88} />
-        <line class="meter-div" x1=${mx} y1=${my + mh - 48} x2=${mx + mw} y2=${my + mh - 48} />
-
-        <!-- Svorky C N -->
-        ${this._terminal(mx + 28, termCN_Y, 'C')}
-        ${this._terminal(mx + 72, termCN_Y, 'N')}
-
-        <!-- Svorky A B -->
-        ${this._terminal(mx + 28, termAB_Y, 'A')}
-        ${this._terminal(mx + 72, termAB_Y, 'B')}
-
-        <!-- Status LEDs + Reset (dekorativní) -->
-        <g class="status-panel" transform="translate(${mx + 18}, ${my + 108})">
-          ${(['Power', 'Wi-Fi', 'LAN', 'Count'] as const).map(
-            (name, i) => html`
-              <text class="led-label" x="0" y=${i * 22}>${name}</text>
-              <circle class="led" cx="62" cy=${i * 22 - 4} r="5" />
-            `,
-          )}
-          <circle class="reset-btn" cx="42" cy="108" r="22" />
-          <text class="reset-label" x="42" y="112" text-anchor="middle">Reset</text>
-        </g>
-
-        <!-- Svorky IA IB -->
-        ${this._terminal(mx + 28, termIAIB_Y, 'IA')}
-        ${this._terminal(mx + 72, termIAIB_Y, 'IB')}
-
-        <!-- Svorky IC IN -->
-        ${this._terminal(mx + 28, termICIN_Y, 'IC')}
-        ${this._terminal(mx + 72, termICIN_Y, 'IN')}
-
-        <!-- CT clampy + smyčky fází -->
-        ${PHASES.map((p) => this._renderPhaseClamp(p, wireBottom))}
-
-        <!-- TN clamp + smyčka k IN -->
-        ${this._renderCtClamp(tnX, tnY, 'TN', 0)}
-        <path
+        <!-- LN (nulák) — zprava do N, jako TN→IN -->
+        ${svg`<path
           class="wire"
           fill="none"
-          d="M ${mx + 72} ${termICIN_Y}
-             L ${mx + 72} ${wireBottom}
-             L ${tnX} ${wireBottom}
-             L ${tnX} ${tnY + 22}"
-        />
+          stroke=${NEUTRAL_COLOR}
+          d=${`M 655 ${TERM.cnY} L ${nEnd.x} ${nEnd.y}`}
+        />`}
+        ${svg`<text class="label label-n" x="620" y=${TERM.cnY - 10} text-anchor="middle" fill=${NEUTRAL_COLOR}>LN</text>`}
+
+        <!-- Horní svorky až po vodičích -->
+        ${this._terminal(TERM.leftX, TERM.cnY, 'C', PHASE_COLOR.c)}
+        ${this._terminal(TERM.rightX, TERM.cnY, 'N', NEUTRAL_COLOR)}
+        ${this._terminal(TERM.leftX, TERM.abY, 'A', PHASE_COLOR.a)}
+        ${this._terminal(TERM.rightX, TERM.abY, 'B', PHASE_COLOR.b)}
+
+        ${this._renderStatusPanel(mx + mw / 2, div2 + 20)}
+
+        ${this._renderClampRowCaptions()}
+        ${CLAMPS.map((c) => this._renderPhaseClamp(c))}
+        ${this._renderNeutralClamp()}
+
+        <!-- Spodní svorky až po vodičích — text nepřekryje linka -->
+        ${this._terminal(TERM.leftX, TERM.iaibY, 'IA', PHASE_COLOR.a)}
+        ${this._terminal(TERM.rightX, TERM.iaibY, 'IB', PHASE_COLOR.b)}
+        ${this._terminal(TERM.leftX, TERM.icinY, 'IC', PHASE_COLOR.c)}
+        ${this._terminal(TERM.rightX, TERM.icinY, 'IN', NEUTRAL_COLOR)}
       </svg>
     `;
   }
 
-  private _terminal(cx: number, cy: number, label: string): TemplateResult {
-    return html`
-      <rect class="term" x=${cx - 14} y=${cy - 12} width="28" height="24" rx="2" />
-      <text class="term-label" x=${cx} y=${cy + 4} text-anchor="middle">${label}</text>
+  /**
+   * Status LEDs + Reset.
+   * Wi-Fi / LAN svítí trvale když jsou entity v configu (hover = hodnota).
+   * Count = krátký červený impuls podle |výkonu|.
+   */
+  private _renderStatusPanel(cx: number, topY: number): SVGTemplateResult {
+    const countPower = this._countPowerAbs();
+    const countPeriod = countBlinkDuration(countPower);
+    const countFlash = 0.35; // s — délka impulzu
+    const countOnEnd =
+      countPeriod > 0 ? Math.min(0.49, countFlash / countPeriod) : 0;
+    const wifiOn = this._filled(this._config?.wifi_signal);
+    const lanOn = this._filled(this._config?.lan_link_speed);
+    const wifiTip = wifiOn
+      ? `Wi-Fi: ${formatEntityValue(this.hass, this._config?.wifi_signal)}`
+      : undefined;
+    const lanTip = lanOn
+      ? `LAN: ${formatEntityValue(this.hass, this._config?.lan_link_speed)}`
+      : undefined;
+
+    const leds: Array<{
+      name: string;
+      color: string;
+      active: boolean;
+      title?: string;
+      countPulse?: boolean;
+    }> = [
+      { name: 'Power', color: '#ff5252', active: true },
+      {
+        name: 'Wi-Fi',
+        color: '#ffd740',
+        active: wifiOn,
+        title: wifiTip,
+      },
+      {
+        name: 'LAN',
+        color: '#69f0ae',
+        active: lanOn,
+        title: lanTip,
+      },
+      {
+        name: 'Count',
+        color: '#ff5252',
+        active: countPeriod > 0,
+        countPulse: countPeriod > 0,
+      },
+    ];
+    const rowH = 32;
+    const resetR = 28;
+    const gapAfterCount = 52;
+    const countY = topY + (leds.length - 1) * rowH;
+    const resetCy = countY + gapAfterCount + resetR;
+    const resetLive = this._filled(this._config?.reset_button);
+
+    return svg`
+      <g class="status-panel">
+        ${leds.map((led, i) => {
+          const cy = topY + i * rowH - 4;
+          const lx = cx + 42;
+          if (led.countPulse) {
+            return svg`
+              <text class="led-label" x=${cx - 44} y=${topY + i * rowH}>${led.name}</text>
+              <circle
+                class="led lit led-count"
+                cx=${lx}
+                cy=${cy}
+                r="6.5"
+                fill=${led.color}
+                stroke=${led.color}
+                opacity="0.08"
+              >
+                <animate
+                  attributeName="opacity"
+                  values="1;1;0.08;0.08"
+                  keyTimes="0;${countOnEnd};${countOnEnd};1"
+                  dur="${countPeriod}s"
+                  repeatCount="indefinite"
+                  calcMode="discrete"
+                />
+              </circle>
+            `;
+          }
+          if (!led.active) {
+            return svg`
+              <text class="led-label dim" x=${cx - 44} y=${topY + i * rowH}>${led.name}</text>
+              <circle class="led off" cx=${lx} cy=${cy} r="6.5" />
+            `;
+          }
+          const cls = 'led lit';
+          return svg`
+            <text class="led-label" x=${cx - 44} y=${topY + i * rowH}>${led.name}</text>
+            <circle
+              class=${cls}
+              cx=${lx}
+              cy=${cy}
+              r="6.5"
+              fill=${led.color}
+              stroke=${led.color}
+              style=${`--led-glow: ${led.color}`}
+            >
+              ${led.title ? svg`<title>${led.title}</title>` : nothing}
+            </circle>
+          `;
+        })}
+        <g
+          class="reset-group ${resetLive ? 'live' : ''}"
+          role=${resetLive ? 'button' : nothing}
+          tabindex=${resetLive ? 0 : nothing}
+          @click=${resetLive ? (e: Event) => void this._onResetClick(e) : nothing}
+          @keydown=${resetLive
+            ? (e: KeyboardEvent) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  void this._onResetClick(e);
+                }
+              }
+            : nothing}
+        >
+          <circle class="reset-btn" cx=${cx} cy=${resetCy} r=${resetR} />
+          <text class="reset-label" x=${cx} y=${resetCy + 5} text-anchor="middle">Reset</text>
+        </g>
+      </g>
     `;
   }
 
-  private _renderPhaseInput(p: PhaseLayout): TemplateResult {
-    const phase = this._phase(p.key);
-    const v = toNum(this.hass, phase?.voltage);
-    const vText = formatVoltage(v);
-    // C → horní svorka C; A/B → střední svorky
-    const entryY = p.key === 'c' ? METER.y + 22 : METER.y + 62;
-    const entryX = p.termX;
+  /** |P| pro Count LED — total_power, jinak součet fází. */
+  private _countPowerAbs(): number {
+    if (this._filled(this._config?.total_power)) {
+      return Math.abs(toNum(this.hass, this._config!.total_power));
+    }
+    let sum = 0;
+    for (const key of ['a', 'b', 'c'] as PhaseKey[]) {
+      const p = this._phase(key)?.power;
+      if (this._filled(p)) sum += toNum(this.hass, p);
+    }
+    return Math.abs(sum);
+  }
 
-    return html`
-      <g class="phase-in">
-        <path
-          class="wire"
-          fill="none"
-          d="M 16 ${p.lineY} L ${entryX} ${p.lineY} L ${entryX} ${entryY}"
-        />
-        <text class="label" x="20" y=${p.lineY - 8}>${p.lineLabel}</text>
+  private _terminal(cx: number, cy: number, label: string, color: string): SVGTemplateResult {
+    const { tw: w, th: h } = TERM;
+    return svg`
+      <rect
+        class="term"
+        x=${cx - w / 2}
+        y=${cy - h / 2}
+        width=${w}
+        height=${h}
+        rx="2"
+        stroke=${color}
+      />
+      <text class="term-label" x=${cx} y=${cy + 5} text-anchor="middle" fill=${color}>${label}</text>
+    `;
+  }
+
+  /**
+   * Vodič končí na okraji svorky (ne prochází textem).
+   * approach: směr příchodu vodiče ke svorce.
+   */
+  private _wireEnd(
+    termX: number,
+    termY: number,
+    approach: 'left' | 'right' | 'top' | 'bottom',
+  ): { x: number; y: number } {
+    const { tw: w, th: h } = TERM;
+    switch (approach) {
+      case 'left':
+        return { x: termX - w / 2, y: termY };
+      case 'right':
+        return { x: termX + w / 2, y: termY };
+      case 'top':
+        return { x: termX, y: termY - h / 2 };
+      case 'bottom':
+        return { x: termX, y: termY + h / 2 };
+    }
+  }
+
+  private _renderPhaseLine(line: (typeof PHASE_LINES)[number]): SVGTemplateResult {
+    const phase = this._phase(line.key);
+    const vText = formatVoltage(toNum(this.hass, phase?.voltage));
+    const color = PHASE_COLOR[line.key];
+    // Vodič začíná u hodnoty napětí (text je těsně nad linkou).
+    const valueX = 68;
+    const wireStart = 64;
+    const labelX = M.x - 18;
+    // Stejný princip jako IA/IC: svisle na výšku svorky, pak vodorovně z boku.
+    const riserX = M.x - 12;
+    const midX = (TERM.leftX + TERM.rightX) / 2;
+
+    let path: string;
+    if (line.key === 'c') {
+      const end = this._wireEnd(line.termX, line.termY, 'left');
+      path = `M ${wireStart} ${line.y} L ${end.x} ${end.y}`;
+    } else if (line.key === 'a') {
+      const end = this._wireEnd(line.termX, line.termY, 'left');
+      path = [
+        `M ${wireStart} ${line.y}`,
+        `L ${riserX} ${line.y}`,
+        `L ${riserX} ${line.termY}`,
+        `L ${end.x} ${end.y}`,
+      ].join(' ');
+    } else {
+      // LB → B: svisle mezi A a B, pak zleva do B (ne přes střed A).
+      const end = this._wireEnd(line.termX, line.termY, 'left');
+      path = [
+        `M ${wireStart} ${line.y}`,
+        `L ${midX} ${line.y}`,
+        `L ${midX} ${line.termY}`,
+        `L ${end.x} ${end.y}`,
+      ].join(' ');
+    }
+
+    return svg`
+      <g class="phase-line">
+        <path class="wire" fill="none" stroke=${color} d=${path} />
+        <text class="caption" x="14" y=${line.y - 10}>Napětí</text>
         <text
           class="value clickable"
-          x="90"
-          y=${p.lineY - 8}
+          x=${valueX}
+          y=${line.y - 10}
+          fill=${color}
           @click=${(e: Event) => this._onValueClick(phase?.voltage, e)}
         >
           ${vText}
         </text>
+        <text class="label" x=${labelX} y=${line.y - 10} text-anchor="end" fill=${color}>
+          ${line.label}
+        </text>
       </g>
     `;
   }
 
-  private _renderPhaseClamp(p: PhaseLayout, wireBottom: number): TemplateResult {
-    const phase = this._phase(p.key);
+  /** Společné popisky Proud / Výkon vlevo od sloupců CT. */
+  private _renderClampRowCaptions(): SVGTemplateResult | typeof nothing {
+    const anyClamp =
+      CLAMPS.some((c) => this._showPhaseClamp(c.key)) || this._filled(this._config?.neutral_current);
+    if (!anyClamp) return nothing;
+    const y = CLAMPS[0].y;
+    return svg`
+      <g class="clamp-captions">
+        <text class="caption" x="14" y=${y - 70}>Proud</text>
+        <text class="caption" x="14" y=${y - 44}>Výkon</text>
+      </g>
+    `;
+  }
+
+  private _renderPhaseClamp(c: (typeof CLAMPS)[number]): SVGTemplateResult | typeof nothing {
+    if (!this._showPhaseClamp(c.key)) return nothing;
+
+    const phase = this._phase(c.key);
     const current = toNum(this.hass, phase?.current);
     const power = toNum(this.hass, phase?.power);
-    const clampY = 250;
+    const color = PHASE_COLOR[c.key];
+    const clampBottom = c.y + CT_SIZE / 2;
+    const path = this._clampWirePath(c.x, clampBottom, c.termX, c.termY, c.route, c.busY, 'left');
 
-    // Smyčka: z výstupní svorky dolů → doleva k clampu → nahoru do clampu
-    const path = `
-      M ${p.outTermX} ${p.outTermY}
-      L ${p.outTermX} ${wireBottom}
-      L ${p.clampX} ${wireBottom}
-      L ${p.clampX} ${clampY + 22}
-    `;
-
-    return html`
+    return svg`
       <g class="phase-clamp">
-        <!-- Hodnoty nad clampem -->
+        <path class="wire" fill="none" stroke=${color} d=${path} />
+        ${this._filled(phase?.current)
+          ? svg`
+              <text
+                class="value clickable"
+                x=${c.x}
+                y=${c.y - 70}
+                text-anchor="middle"
+                fill=${color}
+                @click=${(e: Event) => this._onValueClick(phase?.current, e)}
+              >
+                ${formatCurrent(current)}
+              </text>
+            `
+          : nothing}
+        ${this._filled(phase?.power)
+          ? svg`
+              <text
+                class="value clickable"
+                x=${c.x}
+                y=${c.y - 44}
+                text-anchor="middle"
+                fill=${color}
+                @click=${(e: Event) => this._onValueClick(phase?.power, e)}
+              >
+                ${formatPower(power)}
+              </text>
+            `
+          : nothing}
+        ${this._ctIcon(
+          c.x,
+          c.y,
+          c.label,
+          this._filled(phase?.current) ? Math.abs(current) : 0,
+          color,
+          'left',
+        )}
+      </g>
+    `;
+  }
+
+  /**
+   * Vedení CT → svorka.
+   * - side: svisle na výšku svorky, pak vodorovně (TA→IA, TC→IC, TN→IN).
+   * - around-right: TB→IB — svisle dolů, spodkem doprava za IB, nahoru, zprava do IB
+   *   (neprochází přes ikonu IN pod IB).
+   */
+  private _clampWirePath(
+    clampX: number,
+    clampBottom: number,
+    termX: number,
+    termY: number,
+    route: 'side' | 'around-right',
+    busY: number | undefined,
+    approach: 'left' | 'right',
+  ): string {
+    if (route === 'side') {
+      const end = this._wireEnd(termX, termY, approach);
+      return [`M ${clampX} ${clampBottom}`, `L ${clampX} ${termY}`, `L ${end.x} ${end.y}`].join(' ');
+    }
+
+    // around-right (TB → IB)
+    const bus = busY ?? termY + 80;
+    const bypassX = termX + TERM.tw / 2 + 36;
+    const end = this._wireEnd(termX, termY, 'right');
+    return [
+      `M ${clampX} ${clampBottom}`,
+      `L ${clampX} ${bus}`,
+      `L ${bypassX} ${bus}`,
+      `L ${bypassX} ${termY}`,
+      `L ${end.x} ${end.y}`,
+    ].join(' ');
+  }
+
+  private _renderNeutralClamp(): SVGTemplateResult | typeof nothing {
+    const entityId = this._config?.neutral_current;
+    if (!this._filled(entityId)) return nothing;
+
+    const current = toNum(this.hass, entityId);
+    const clampBottom = TN.y + CT_SIZE / 2;
+    // TN je vpravo → vodorovně doleva do IN (side zprava)
+    const path = this._clampWirePath(
+      TN.x,
+      clampBottom,
+      TN.termX,
+      TN.termY,
+      'side',
+      undefined,
+      'right',
+    );
+
+    return svg`
+      <g class="neutral-clamp">
+        <path class="wire" fill="none" stroke=${NEUTRAL_COLOR} d=${path} />
+        <text class="caption" x=${TN.x} y=${TN.y - 70} text-anchor="middle">Proud</text>
         <text
           class="value clickable"
-          x=${p.clampX}
-          y=${clampY - 48}
+          x=${TN.x}
+          y=${TN.y - 44}
           text-anchor="middle"
-          @click=${(e: Event) => this._onValueClick(phase?.current, e)}
+          fill=${NEUTRAL_COLOR}
+          @click=${(e: Event) => this._onValueClick(entityId, e)}
         >
           ${formatCurrent(current)}
         </text>
-        <text
-          class="value clickable"
-          x=${p.clampX}
-          y=${clampY - 30}
-          text-anchor="middle"
-          @click=${(e: Event) => this._onValueClick(phase?.power, e)}
-        >
-          ${formatPower(power)}
-        </text>
-        ${this._renderCtClamp(p.clampX, clampY, p.clampLabel, Math.abs(current))}
-        <path class="wire" fill="none" d=${path} />
+        ${this._ctIcon(TN.x, TN.y, 'TN', Math.abs(current), NEUTRAL_COLOR)}
       </g>
     `;
   }
 
-  private _renderCtClamp(cx: number, cy: number, label: string, currentAbs: number): TemplateResult {
+  /** CT clamp 50×50: zaoblený čtverec + otevřený kruh + pulzující střed. */
+  private _ctIcon(
+    cx: number,
+    cy: number,
+    label: string,
+    currentAbs: number,
+    color: string,
+    labelSide: 'bottom' | 'left' = 'bottom',
+  ): SVGTemplateResult {
     const dur = clampPulseDuration(currentAbs);
-    const size = 36;
-    const half = size / 2;
+    const s = CT_SIZE;
+    const h = s / 2;
+    const r = 15;
+    const gap = 48;
+    const start = ((-90 + gap / 2) * Math.PI) / 180;
+    const endAng = ((-90 - gap / 2 + 360) * Math.PI) / 180;
+    const x1 = h + r * Math.cos(start);
+    const y1 = h + r * Math.sin(start);
+    const x2 = h + r * Math.cos(endAng);
+    const y2 = h + r * Math.sin(endAng);
+    const arc = `M ${x1.toFixed(2)} ${y1.toFixed(2)} A ${r} ${r} 0 1 1 ${x2.toFixed(2)} ${y2.toFixed(2)}`;
 
-    return html`
-      <g class="ct-clamp" transform="translate(${cx - half}, ${cy - half})">
-        <rect class="ct-body" x="0" y="0" width=${size} height=${size} rx="3" />
-        <circle class="ct-ring" cx=${half} cy=${half} r="11" />
+    const labelEl =
+      labelSide === 'left'
+        ? svg`<text class="label" x=${-6} y=${h + 4} text-anchor="end" fill=${color}>${label}</text>`
+        : svg`<text class="label" x=${h} y=${s + 16} text-anchor="middle" fill=${color}>${label}</text>`;
+
+    return svg`
+      <g class="ct-clamp" transform="translate(${cx - h}, ${cy - h})">
+        <rect class="ct-body" x="1" y="1" width=${s - 2} height=${s - 2} rx="7" stroke=${color} />
+        <path class="ct-ring" fill="none" stroke=${color} d=${arc} />
         <circle
           class="ct-dot ${dur > 0 ? 'pulse' : ''}"
-          cx=${half}
-          cy=${half}
+          cx=${h}
+          cy=${h}
           r="3.5"
+          fill=${color}
           style=${dur > 0 ? `--pulse-dur:${dur}s` : ''}
         />
-        <text class="label" x=${half} y=${size + 14} text-anchor="middle">${label}</text>
+        ${labelEl}
       </g>
     `;
   }
@@ -372,37 +725,51 @@ export class Shelly3emDiagramCard extends LitElement {
   static styles = css`
     :host {
       display: block;
-      --diagram-accent: var(--primary-color, #4fc3f7);
-      --diagram-line: var(--primary-text-color, #e0e6ed);
-      --diagram-muted: var(--secondary-text-color, #9aa5b1);
-      --diagram-bg: var(--card-background-color, #0f1419);
+      --diagram-accent: #4fc3f7;
+      --diagram-bg: #0f1419;
+      --shelly-blue: #1e88e5;
     }
 
     ha-card {
-      background: var(--diagram-bg);
+      background: var(--card-background-color, var(--diagram-bg));
       overflow: hidden;
-      padding: 12px 8px 8px;
+      padding: 10px 4px 2px;
+      color: var(--primary-text-color, #fff);
     }
 
     .header {
+      position: relative;
       display: flex;
       align-items: flex-start;
-      justify-content: space-between;
-      padding: 0 8px 4px;
+      justify-content: flex-end;
+      min-height: 2.4em;
+      padding: 0 12px 4px;
       gap: 12px;
     }
 
     .title {
-      font-size: 1.05rem;
-      font-weight: 500;
-      color: var(--diagram-line);
-      letter-spacing: 0.02em;
+      position: absolute;
+      left: 50%;
+      top: 0;
+      transform: translateX(-50%);
+      max-width: calc(100% - 200px);
+      text-align: center;
+      font-size: 1.25rem;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      color: var(--primary-text-color, #fff);
+      pointer-events: none;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .totals {
       display: flex;
-      gap: 12px;
-      margin-top: 4px;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 6px;
+      flex-shrink: 0;
     }
 
     .value-btn {
@@ -410,21 +777,31 @@ export class Shelly3emDiagramCard extends LitElement {
       border: none;
       padding: 0;
       cursor: pointer;
-      color: var(--diagram-accent);
       font: inherit;
+      display: inline-flex;
+      flex-direction: row;
+      align-items: baseline;
+      gap: 8px;
+      line-height: 1.2;
+      text-align: right;
+    }
+
+    .value-btn .caption {
+      color: var(--secondary-text-color, rgba(255, 255, 255, 0.55));
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .value-btn .num {
+      color: var(--diagram-accent);
       font-size: 0.85rem;
       font-variant-numeric: tabular-nums;
+      font-weight: 500;
     }
 
-    .value-btn:hover {
+    .value-btn:hover .num {
       text-decoration: underline;
-    }
-
-    .header-icons {
-      display: flex;
-      gap: 8px;
-      color: var(--diagram-muted);
-      padding-top: 2px;
     }
 
     .diagram {
@@ -439,48 +816,54 @@ export class Shelly3emDiagramCard extends LitElement {
     }
 
     .wire {
-      stroke: var(--diagram-line);
-      stroke-width: 1.2;
+      stroke-width: 2;
+      stroke-linecap: square;
+      stroke-linejoin: miter;
       fill: none;
-      opacity: 0.85;
     }
 
     .meter {
-      fill: transparent;
-      stroke: var(--diagram-line);
-      stroke-width: 1.4;
+      fill: rgba(30, 136, 229, 0.08);
+      stroke: var(--shelly-blue);
+      stroke-width: 2;
     }
 
     .meter-div {
-      stroke: var(--diagram-line);
-      stroke-width: 1;
+      stroke: var(--shelly-blue);
+      stroke-width: 1.2;
       opacity: 0.55;
     }
 
     .term {
-      fill: transparent;
-      stroke: var(--diagram-line);
-      stroke-width: 1.1;
+      fill: var(--card-background-color, var(--diagram-bg));
+      stroke-width: 1.6;
     }
 
     .term-label {
-      fill: var(--diagram-line);
-      font-size: 11px;
-      font-family: system-ui, -apple-system, sans-serif;
-      font-weight: 500;
+      font-size: 13px;
+      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      font-weight: 650;
     }
 
     .label {
-      fill: var(--diagram-muted);
-      font-size: 11px;
-      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 12px;
+      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      font-weight: 600;
+    }
+
+    .caption {
+      fill: rgba(255, 255, 255, 0.45);
+      font-size: 10px;
+      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      font-weight: 500;
+      letter-spacing: 0.02em;
     }
 
     .value {
-      fill: var(--diagram-accent);
-      font-size: 12px;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 13px;
+      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
       font-variant-numeric: tabular-nums;
+      font-weight: 600;
     }
 
     .value.clickable {
@@ -488,48 +871,86 @@ export class Shelly3emDiagramCard extends LitElement {
     }
 
     .value.clickable:hover {
+      filter: brightness(1.2);
       text-decoration: underline;
     }
 
     .led-label {
-      fill: var(--diagram-muted);
-      font-size: 10px;
-      font-family: system-ui, -apple-system, sans-serif;
+      fill: rgba(255, 255, 255, 0.75);
+      font-size: 12px;
+      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
     }
 
-    .led {
+    .led-label.dim {
+      fill: rgba(255, 255, 255, 0.35);
+    }
+
+    .led.off {
       fill: none;
-      stroke: var(--diagram-line);
+      stroke: rgba(255, 255, 255, 0.28);
       stroke-width: 1.2;
     }
 
+    .led {
+      stroke-width: 1.2;
+    }
+
+    .led.lit {
+      filter: drop-shadow(0 0 4px var(--led-glow, #fff));
+    }
+
+    .led-count {
+      filter: drop-shadow(0 0 4px #ff5252);
+    }
+
     .reset-btn {
-      fill: none;
-      stroke: var(--diagram-line);
-      stroke-width: 1.4;
+      /* transparent fill = celá plocha klikací (fill:none chytá jen stroke) */
+      fill: transparent;
+      stroke: var(--shelly-blue);
+      stroke-width: 1.8;
+      pointer-events: all;
     }
 
     .reset-label {
-      fill: var(--diagram-line);
-      font-size: 10px;
-      font-family: system-ui, -apple-system, sans-serif;
+      fill: var(--shelly-blue);
+      font-size: 13px;
+      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      font-weight: 600;
+      pointer-events: none;
+    }
+
+    .reset-group.live {
+      cursor: pointer;
+      pointer-events: all;
+    }
+
+    .reset-group.live:hover .reset-btn,
+    .reset-group.live:focus-visible .reset-btn {
+      stroke: var(--diagram-accent);
+      fill: rgba(79, 195, 247, 0.1);
+    }
+
+    .reset-group.live:hover .reset-label,
+    .reset-group.live:focus-visible .reset-label {
+      fill: var(--diagram-accent);
+    }
+
+    .reset-group.live:focus {
+      outline: none;
     }
 
     .ct-body {
-      fill: none;
-      stroke: var(--diagram-line);
-      stroke-width: 1.3;
+      fill: rgba(15, 20, 25, 0.92);
+      stroke-width: 1.8;
     }
 
     .ct-ring {
-      fill: none;
-      stroke: var(--diagram-line);
-      stroke-width: 1.3;
+      stroke-width: 1.8;
+      stroke-linecap: round;
     }
 
     .ct-dot {
-      fill: var(--diagram-accent);
-      opacity: 0.35;
+      opacity: 0.45;
     }
 
     .ct-dot.pulse {
@@ -543,7 +964,7 @@ export class Shelly3emDiagramCard extends LitElement {
       0%,
       100% {
         opacity: 0.35;
-        transform: scale(0.75);
+        transform: scale(0.7);
       }
       50% {
         opacity: 1;
