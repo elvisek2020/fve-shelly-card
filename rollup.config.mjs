@@ -16,7 +16,9 @@ export default {
   plugins: [
     replace({
       preventAssignment: true,
-      __CARD_VERSION__: pkg.version,
+      values: {
+        __CARD_VERSION__: JSON.stringify(pkg.version),
+      },
     }),
     resolve(),
     typescript(),

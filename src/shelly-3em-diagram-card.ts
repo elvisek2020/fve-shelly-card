@@ -16,7 +16,8 @@ import { openConfirmDialog } from './confirm-dialog';
 import './editor';
 
 /** Nahrazuje Rollup replace z package.json version. */
-const CARD_VERSION = '__CARD_VERSION__';
+declare const __CARD_VERSION__: string;
+const CARD_VERSION = __CARD_VERSION__;
 
 /** Výchozí stub entity (shodné s typickou instalací DUB 1NB AC-IN). */
 const STUB: Shelly3emDiagramCardConfig = {
@@ -1067,7 +1068,7 @@ window.customCards.push({
 });
 
 console.info(
-  `%c SHELLY-3EM-DIAGRAM-CARD %c ${CARD_VERSION} `,
+  `%c SHELLY-3EM-DIAGRAM-CARD %c v${CARD_VERSION} `,
   'background:#0f1419;color:#4fc3f7;font-weight:bold',
   'background:#4fc3f7;color:#0f1419;font-weight:bold',
 );

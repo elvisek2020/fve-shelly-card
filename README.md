@@ -33,7 +33,7 @@ Konkrétní entity se mapují v YAML — karta není závislá na přesných ná
 1. Stáhni `shelly-3em-diagram-card.js` z posledního [release](../../releases)
 2. Zkopíruj do `/config/www/`
 3. Nastavení → Dashboardy → ⋮ → Zdroje → Přidat:
-   URL `/local/shelly-3em-diagram-card.js?v=0.3.1`, typ **JavaScript module**
+   URL `/local/shelly-3em-diagram-card.js?v=0.3.2`, typ **JavaScript module**
 
 ## Konfigurace
 
