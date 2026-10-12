@@ -1,4 +1,9 @@
 node_modules/
 *.log
 .DS_Store
+# lokální náhled s mock hass (importuje dist/)
 preview.html
+
+# lokální deník práce, synchronizuje se přes iCloud
+_docs/
+.cursor/

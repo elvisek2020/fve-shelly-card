@@ -1,7 +1,7 @@
 {
   "name": "fve-shelly-card",
   "version": "0.3.2",
-  "description": "Custom Lovelace karta pro Home Assistant — live diagram Shelly Pro 3EM (fáze V/A/W).",
+  "description": "Custom Lovelace karta pro Home Assistant — live diagram Shelly Pro 3EM ve stylu Shelly Cloud „Diagram view“ (napětí, proud a výkon po fázích).",
   "type": "module",
   "main": "dist/shelly-3em-diagram-card.js",
   "license": "MIT",

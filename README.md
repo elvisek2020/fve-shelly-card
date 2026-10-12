@@ -1,5 +1,12 @@
 # Shelly 3EM Diagram Card
 
+[![HACS Custom](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
+[![Release](https://img.shields.io/github/v/release/elvisek2020/fve-shelly-card)](https://github.com/elvisek2020/fve-shelly-card/releases)
+[![Validate](https://github.com/elvisek2020/fve-shelly-card/actions/workflows/validate.yml/badge.svg)](https://github.com/elvisek2020/fve-shelly-card/actions/workflows/validate.yml)
+[![Licence](https://img.shields.io/github/license/elvisek2020/fve-shelly-card)](LICENSE)
+
+[![Otevřít v HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=elvisek2020&repository=fve-shelly-card&category=plugin)
+
 Custom Lovelace karta pro Home Assistant — live diagram **Shelly Pro 3EM**
 ve stylu Shelly Cloud „Diagram view“ (napětí, proud a výkon po fázích).
 
@@ -12,7 +19,7 @@ ve stylu Shelly Cloud „Diagram view“ (napětí, proud a výkon po fázích).
 - Klik na hodnotu otevře nativní HA more-info dialog
 - Respektuje HA theme CSS proměnné
 
-## Předpoklady
+## Předpoklady a závislosti
 
 | Komponenta | Integrace | Co dodává |
 | --- | --- | --- |
@@ -24,9 +31,12 @@ Konkrétní entity se mapují v YAML — karta není závislá na přesných ná
 
 ### HACS (doporučeno)
 
-1. HACS → tři tečky → **Custom repositories**
-2. URL tohoto repozitáře, kategorie **Dashboard**
-3. Nainstaluj **Shelly 3EM Diagram Card** a reloadni prohlížeč
+1. HACS → tři tečky vpravo nahoře → **Custom repositories**
+2. Vlož URL `https://github.com/elvisek2020/fve-shelly-card`, kategorie **Dashboard**
+3. Nainstaluj **Shelly 3EM Diagram Card**
+4. Obnov stránku prohlížeče bez cache.
+
+HACS nabízí aktualizace z GitHub releases.
 
 ### Ručně
 
@@ -34,6 +44,7 @@ Konkrétní entity se mapují v YAML — karta není závislá na přesných ná
 2. Zkopíruj do `/config/www/`
 3. Nastavení → Dashboardy → ⋮ → Zdroje → Přidat:
    URL `/local/shelly-3em-diagram-card.js?v=0.3.2`, typ **JavaScript module**
+   (číslo verze zvyšuj při každé aktualizaci kvůli cache)
 
 ## Konfigurace
 
@@ -87,13 +98,6 @@ CT clampy **TA / TB / TC** jen když je vyplněný proud nebo výkon — dynamic
 
 **Připojení:** vyplněný `wifi_signal` = Wi-Fi (žlutá LED svítí, hover = síla); vyplněný `lan_link_speed` = LAN (zelená LED svítí, hover = rychlost). Obě entity mohou být nastavené zároveň.
 
-## Omezení
-
-- LED **Power** svítí vždy; **Count** pulsuje podle |výkonu|; **Wi-Fi** / **LAN** svítí trvale (hover = hodnota) — jen když jsou v configu příslušné entity.
-- Tlačítko **Reset** je aktivní jen když je v configu `reset_button` (`button.*`) —
-  po kliknutí se zobrazí potvrzení a pak se volá `button.press`.
-- Zdánlivý výkon (VA) se **nezobrazuje**.
-
 ## Vývoj
 
 ```bash
@@ -105,6 +109,25 @@ npm run watch
 
 Stack: Lit 3 + TypeScript + Rollup (stejný jako [fve-flow-card](https://github.com/elvisek2020/fve-flow-card)).
 
-## Licence
+## Vydání verze
 
-MIT — viz [LICENSE](LICENSE).
+1. Zvedni `version` v `package.json` (SemVer) — jediný zdroj verze, Rollup ji vloží do bundlu.
+   V README uprav `?v=` u ruční instalace.
+2. Doplň nahoru do `CHANGELOG.md` sekci `## vX.Y.Z — RRRR-MM-DD`; z ní vznikne text
+   vydání, který HA / HACS ukazuje v okně aktualizace.
+3. Commit `Release vX.Y.Z: krátký popis`, `git tag vX.Y.Z`, push commitu i tagu.
+4. Workflow **Release** zbuildí kartu, přiloží `shelly-3em-diagram-card.js` a založí release.
+   HACS nabídne aktualizaci.
+
+## Známá omezení
+
+- LED **Power** svítí vždy; **Count** pulsuje podle |výkonu|; **Wi-Fi** / **LAN** svítí trvale (hover = hodnota) — jen když jsou v configu příslušné entity.
+- Tlačítko **Reset** je aktivní jen když je v configu `reset_button` (`button.*`) —
+  po kliknutí se zobrazí potvrzení a pak se volá `button.press`.
+- Zdánlivý výkon (VA) se **nezobrazuje**.
+
+## Autor
+
+**[elvisek2020](https://github.com/elvisek2020)** — karta vznikla jako detailní pohled
+na jednotlivé elektroměry Shelly Pro 3EM ve vlastní instalaci, doplněk k
+[Hybrid Energy Flow Card](https://github.com/elvisek2020/fve-flow-card). Licence MIT.
