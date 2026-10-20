@@ -61,6 +61,41 @@ export interface Shelly3emDiagramCardConfig {
   lan_link_speed?: string;
 }
 
+/** Vstup SW1 / SW2 (typicky `binary_sensor.*_vstup_N`). */
+export interface InputConfig {
+  /** Volitelný vlastní název (např. „Vypínač u dveří“). */
+  name?: string;
+  /** Entita stavu vstupu. */
+  entity?: string;
+}
+
+/** YAML konfigurace karty `shelly-pro1-diagram-card`. */
+export interface ShellyPro1DiagramCardConfig {
+  type?: string;
+  /** Titulek v headeru. */
+  title?: string;
+  /** Výstup relé (`switch.*`) — povinné, ovládá se kliknutím. */
+  switch?: string;
+  /** Název zátěže na výstupu O (např. „Čerpadlo“). */
+  name?: string;
+  /** Před přepnutím zobrazit potvrzovací dialog. */
+  confirm?: boolean;
+  /** Vstup SW1. */
+  input_1?: InputConfig;
+  /** Vstup SW2. */
+  input_2?: InputConfig;
+  /** Teplota zařízení (°C) — volitelně v headeru. */
+  temperature?: string;
+  /** Firmware `update.*` — v headeru upozorní na dostupnou aktualizaci. */
+  firmware_update?: string;
+  /** Síla Wi-Fi signálu — LED Wi-Fi svítí (hover = hodnota). */
+  wifi_signal?: string;
+  /** Rychlost LAN linky — LED LAN svítí (hover = hodnota). */
+  lan_link_speed?: string;
+  /** Shelly Restart `button.*` — Reset s potvrzením. */
+  reset_button?: string;
+}
+
 declare global {
   interface Window {
     customCards?: Array<{

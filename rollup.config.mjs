@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs';
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
 
 export default {
-  input: 'src/shelly-3em-diagram-card.ts',
+  input: 'src/index.ts',
   output: {
     file: 'dist/shelly-3em-diagram-card.js',
     format: 'es',

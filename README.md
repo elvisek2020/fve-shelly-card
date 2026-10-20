@@ -19,11 +19,15 @@ ve stylu Shelly Cloud „Diagram view“ (napětí, proud a výkon po fázích).
 - Klik na hodnotu otevře nativní HA more-info dialog
 - Respektuje HA theme CSS proměnné
 
+Ve stejném souboru je i **[Shelly Pro 1 Diagram Card](#shelly-pro-1-diagram-card)** —
+diagram relé Shelly Pro 1 / Pro 1 UL pro ovládání výstupu.
+
 ## Předpoklady a závislosti
 
 | Komponenta | Integrace | Co dodává |
 | --- | --- | --- |
 | **Shelly Pro 3EM** | nativní [Shelly](https://www.home-assistant.io/integrations/shelly/) | napětí, proud a výkon po fázích, celkový výkon / energie |
+| **Shelly Pro 1 / Pro 1 UL** | nativní [Shelly](https://www.home-assistant.io/integrations/shelly/) | relé (`switch.*`), vstupy SW1/SW2, restart, firmware |
 
 Konkrétní entity se mapují v YAML — karta není závislá na přesných názvech.
 
@@ -43,7 +47,7 @@ HACS nabízí aktualizace z GitHub releases.
 1. Stáhni `shelly-3em-diagram-card.js` z posledního [release](../../releases)
 2. Zkopíruj do `/config/www/`
 3. Nastavení → Dashboardy → ⋮ → Zdroje → Přidat:
-   URL `/local/shelly-3em-diagram-card.js?v=0.3.2`, typ **JavaScript module**
+   URL `/local/shelly-3em-diagram-card.js?v=0.4.0`, typ **JavaScript module**
    (číslo verze zvyšuj při každé aktualizaci kvůli cache)
 
 ## Konfigurace
@@ -98,6 +102,52 @@ CT clampy **TA / TB / TC** jen když je vyplněný proud nebo výkon — dynamic
 
 **Připojení:** vyplněný `wifi_signal` = Wi-Fi (žlutá LED svítí, hover = síla); vyplněný `lan_link_speed` = LAN (zelená LED svítí, hover = rychlost). Obě entity mohou být nastavené zároveň.
 
+## Shelly Pro 1 Diagram Card
+
+Ovládací karta pro **Shelly Pro 1** (i UL verzi SPSW-201XE15UL) ve stejném stylu jako
+3EM diagram. Pro 1 nic neměří, karta proto stojí na ovládání relé.
+
+- Blok zařízení se svorkami L/N (napájení), SW1/SW2 (vstupy) a I/O (bezpotenciálový kontakt relé)
+- Velké tlačítko **Výstup relé** — klik přepne výstup (`turn_on` / `turn_off`)
+- Kontakt relé na čele zařízení se kreslí sepnutý / rozepnutý a dá se na něj také kliknout
+- Při sepnutí „teče“ vodič z O k zátěži; během přepínání karta ukazuje „Zapínám… / Vypínám…“
+- Volitelné potvrzení před přepnutím (`confirm: true`)
+- Stav vstupů SW1/SW2, LED Power / Out / Wi-Fi / LAN, Reset (restart) s potvrzením
+- V headeru teplota zařízení a upozornění na novou verzi firmwaru
+
+Kartu přidej přes výběr karet (**Shelly Pro 1 Diagram Card**) a nastav ve vizuálním editoru.
+
+```yaml
+type: custom:shelly-pro1-diagram-card
+title: DUB-0ZD-FVE-AC-IN
+switch: switch.dub_0zd_fve_ac_in
+name: Přívod FVE
+confirm: true
+input_1:
+  entity: binary_sensor.dub_0zd_fve_ac_in_vstup_0
+  name: Tlačítko
+input_2:
+  entity: binary_sensor.dub_0zd_fve_ac_in_vstup_1
+firmware_update: update.dub_0zd_fve_ac_in_firmware
+reset_button: button.dub_0zd_fve_ac_in_restartovat
+# volitelné (v HA jsou tyto entity Shelly ve výchozím stavu vypnuté):
+temperature: sensor.dub_0zd_fve_ac_in_teplota
+wifi_signal: sensor.0np_zahradni_domek_shellypro1_f8b3b7f92b48_sila_signalu
+```
+
+| Klíč | Povinné | Popis |
+| --- | --- | --- |
+| `switch` | ano | Výstup relé (`switch.*`, případně `light.*` / `input_boolean.*`) |
+| `title` | ne | Titulek v headeru — výchozí je název entity výstupu |
+| `name` | ne | Název zátěže na výstupu O (např. „Čerpadlo“) |
+| `confirm` | ne | `true` = před zapnutím i vypnutím potvrzovací dialog |
+| `input_1` / `input_2` | ne | Vstup SW1 / SW2 — objekt s `entity` (`binary_sensor.*`) a volitelným `name`; bez entity se vstup nezobrazí |
+| `temperature` | ne | Teplota zařízení — vpravo nahoře |
+| `firmware_update` | ne | `update.*` — při dostupné aktualizaci se vpravo nahoře ukáže „Firmware: Aktualizace“ |
+| `wifi_signal` | ne | Síla Wi-Fi (RSSI) — LED **Wi-Fi** svítí; hover = síla signálu |
+| `lan_link_speed` | ne | Rychlost LAN linky — LED **LAN** svítí; hover = rychlost |
+| `reset_button` | ne | Shelly `button.*` (restart) — aktivuje klikací Reset s potvrzením |
+
 ## Vývoj
 
 ```bash
@@ -125,6 +175,10 @@ Stack: Lit 3 + TypeScript + Rollup (stejný jako [fve-flow-card](https://github.
 - Tlačítko **Reset** je aktivní jen když je v configu `reset_button` (`button.*`) —
   po kliknutí se zobrazí potvrzení a pak se volá `button.press`.
 - Zdánlivý výkon (VA) se **nezobrazuje**.
+- **Pro 1:** rozmístění svorek je schematické, ne přesná kopie čela zařízení. LED **Out** svítí
+  podle stavu relé, **Power** podle dostupnosti entity výstupu.
+- **Pro 1:** vstupy SW1/SW2 karta umí jen jako `binary_sensor` (vstup typu spínač).
+  Vstup typu tlačítko má v HA entitu `event.*`, tu karta zatím nezobrazí.
 
 ## Autor
 
