@@ -5,6 +5,13 @@ text vydání na GitHubu — a ten Home Assistant / HACS ukazuje v okně aktuali
 
 Nejnovější verze je nahoře.
 
+## v0.4.1 — 2026-10-20
+
+### 🎨 Vzhled
+
+- Balíček se v HACS jmenuje **Shelly Diagram Cards** — obsahuje kartu pro Shelly Pro 3EM
+  i Shelly Pro 1. Názvy karet ve výběru karet, soubor ani nastavení dashboardů se nemění.
+
 ## v0.4.0 — 2026-10-20
 
 ### ✨ Novinky

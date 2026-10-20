@@ -1,5 +1,5 @@
 {
-  "name": "Shelly 3EM Diagram Card",
+  "name": "Shelly Diagram Cards",
   "render_readme": true,
   "filename": "shelly-3em-diagram-card.js",
   "homeassistant": "2026.10.0"

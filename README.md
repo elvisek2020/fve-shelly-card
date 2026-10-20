@@ -1,4 +1,4 @@
-# Shelly 3EM Diagram Card
+# Shelly Diagram Cards
 
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
 [![Release](https://img.shields.io/github/v/release/elvisek2020/fve-shelly-card)](https://github.com/elvisek2020/fve-shelly-card/releases)
@@ -7,10 +7,15 @@
 
 [![Otevřít v HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=elvisek2020&repository=fve-shelly-card&category=plugin)
 
-Custom Lovelace karta pro Home Assistant — live diagram **Shelly Pro 3EM**
-ve stylu Shelly Cloud „Diagram view“ (napětí, proud a výkon po fázích).
+Custom Lovelace karty pro Home Assistant — diagramy zařízení Shelly ve stylu
+Shelly Cloud „Diagram view“. Jeden soubor obsahuje dvě karty:
 
-![Shelly 3EM Diagram Card — náhled](docs/preview.png)
+- **Shelly 3EM Diagram Card** — live diagram **Shelly Pro 3EM** (napětí, proud a výkon po fázích)
+- **[Shelly Pro 1 Diagram Card](#shelly-pro-1-diagram-card)** — ovládání relé **Shelly Pro 1 / Pro 1 UL**
+
+![Shelly Diagram Cards — náhled](docs/preview.png)
+
+Shelly 3EM Diagram Card:
 
 - Centrální blok elektroměru se svorkami C/N, A/B, IA/IB, IC/IN
 - Vstupní linky LC / LB / LA s napětím (V)
@@ -18,9 +23,6 @@ ve stylu Shelly Cloud „Diagram view“ (napětí, proud a výkon po fázích).
 - Pulzující indikace toku úměrná proudu
 - Klik na hodnotu otevře nativní HA more-info dialog
 - Respektuje HA theme CSS proměnné
-
-Ve stejném souboru je i **[Shelly Pro 1 Diagram Card](#shelly-pro-1-diagram-card)** —
-diagram relé Shelly Pro 1 / Pro 1 UL pro ovládání výstupu.
 
 ## Předpoklady a závislosti
 
@@ -37,7 +39,7 @@ Konkrétní entity se mapují v YAML — karta není závislá na přesných ná
 
 1. HACS → tři tečky vpravo nahoře → **Custom repositories**
 2. Vlož URL `https://github.com/elvisek2020/fve-shelly-card`, kategorie **Dashboard**
-3. Nainstaluj **Shelly 3EM Diagram Card**
+3. Nainstaluj **Shelly Diagram Cards**
 4. Obnov stránku prohlížeče bez cache.
 
 HACS nabízí aktualizace z GitHub releases.
@@ -47,7 +49,7 @@ HACS nabízí aktualizace z GitHub releases.
 1. Stáhni `shelly-3em-diagram-card.js` z posledního [release](../../releases)
 2. Zkopíruj do `/config/www/`
 3. Nastavení → Dashboardy → ⋮ → Zdroje → Přidat:
-   URL `/local/shelly-3em-diagram-card.js?v=0.4.0`, typ **JavaScript module**
+   URL `/local/shelly-3em-diagram-card.js?v=0.4.1`, typ **JavaScript module**
    (číslo verze zvyšuj při každé aktualizaci kvůli cache)
 
 ## Konfigurace
