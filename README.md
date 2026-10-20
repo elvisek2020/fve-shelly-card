@@ -49,7 +49,7 @@ HACS nabízí aktualizace z GitHub releases.
 1. Stáhni `shelly-3em-diagram-card.js` z posledního [release](../../releases)
 2. Zkopíruj do `/config/www/`
 3. Nastavení → Dashboardy → ⋮ → Zdroje → Přidat:
-   URL `/local/shelly-3em-diagram-card.js?v=0.4.1`, typ **JavaScript module**
+   URL `/local/shelly-3em-diagram-card.js?v=0.4.2`, typ **JavaScript module**
    (číslo verze zvyšuj při každé aktualizaci kvůli cache)
 
 ## Konfigurace

@@ -5,6 +5,16 @@ text vydání na GitHubu — a ten Home Assistant / HACS ukazuje v okně aktuali
 
 Nejnovější verze je nahoře.
 
+## v0.4.2 — 2026-10-20
+
+### 🐛 Opravy
+
+- **Shelly Pro 1 Diagram Card** má stejnou velikost jako karta pro Pro 3EM — vedle sebe
+  mají obě karty stejnou výšku a blok zařízení lícuje.
+
+> [!TIP]
+> Po aktualizaci obnov stránku bez cache.
+
 ## v0.4.1 — 2026-10-20
 
 ### 🎨 Vzhled

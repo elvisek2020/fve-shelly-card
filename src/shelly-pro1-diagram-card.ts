@@ -26,8 +26,8 @@ const INPUT_ON_COLOR = '#ffd740';
 const OUT_ON_COLOR = '#69f0ae';
 const DIM_COLOR = 'rgba(255, 255, 255, 0.26)';
 
-/** Layout podle 3EM diagramu (viewBox 680×520) — stejný blok zařízení. */
-const VB = { w: 680, h: 520 };
+/** Layout podle 3EM diagramu — stejný viewBox i blok zařízení, ať mají karty stejnou velikost. */
+const VB = { w: 680, h: 600 };
 
 const M = { x: 380, y: 24, w: 128, h: 470 };
 
@@ -95,11 +95,11 @@ export class ShellyPro1DiagramCard extends LitElement {
   }
 
   public getCardSize(): number {
-    return 8;
+    return 9;
   }
 
   public getGridOptions(): Record<string, unknown> {
-    return { columns: 12, rows: 6, min_rows: 4 };
+    return { columns: 12, rows: 7, min_rows: 5 };
   }
 
   public disconnectedCallback(): void {
