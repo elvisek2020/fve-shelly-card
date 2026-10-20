@@ -5,6 +5,24 @@ text vydání na GitHubu — a ten Home Assistant / HACS ukazuje v okně aktuali
 
 Nejnovější verze je nahoře.
 
+## v0.4.3 — 2026-10-20
+
+### ✨ Novinky
+
+- Nová volba **Připojení** (`connection: wifi` / `lan`) v obou kartách — LED **Wi-Fi** nebo
+  **LAN** svítí podle typu připojení i bez entity (integrace Shelly pro LAN entitu nemá a síla
+  Wi-Fi signálu bývá v HA vypnutá). Vyplněná entita dál ukáže hodnotu při najetí myší.
+- Shelly Pro 1: LED připojení zhasnou, když je zařízení nedostupné.
+
+### ⚠️ Změny, které vyžadují zásah
+
+- Aby LED připojení svítila bez entity, vyber v editoru karty **Zařízení → Připojení**
+  (nebo doplň `connection: wifi` / `connection: lan` do YAML). Stávající konfigurace s entitami
+  fungují beze změny.
+
+> [!TIP]
+> Po aktualizaci obnov stránku bez cache.
+
 ## v0.4.2 — 2026-10-20
 
 ### 🐛 Opravy

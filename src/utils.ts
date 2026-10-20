@@ -1,4 +1,4 @@
-import type { HomeAssistant } from './types';
+import type { ConnectionType, HomeAssistant } from './types';
 
 /** Bezpečně převede stav entity na číslo; NaN → fallback. */
 export function toNum(
@@ -77,6 +77,23 @@ export function formatEntityValue(
     return unit ? `${formatted} ${unit}` : formatted;
   }
   return unit ? `${st.state} ${unit}` : st.state;
+}
+
+/**
+ * LED Wi-Fi / LAN: svítí podle `connection` nebo vyplněné entity.
+ * Hover (title) ukáže hodnotu entity, bez entity jen „připojeno“.
+ */
+export function connectionLed(
+  hass: HomeAssistant | undefined,
+  kind: ConnectionType,
+  connection: ConnectionType | undefined,
+  entityId: string | undefined,
+): { active: boolean; title?: string } {
+  const filled = typeof entityId === 'string' && entityId.trim().length > 0;
+  const active = connection === kind || filled;
+  if (!active) return { active };
+  const label = kind === 'wifi' ? 'Wi-Fi' : 'LAN';
+  return { active, title: `${label}: ${filled ? formatEntityValue(hass, entityId) : 'připojeno'}` };
 }
 
 /**

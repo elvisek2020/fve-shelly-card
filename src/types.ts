@@ -18,6 +18,9 @@ export interface HomeAssistant {
   ) => Promise<unknown>;
 }
 
+/** Typ připojení Shelly k síti. */
+export type ConnectionType = 'wifi' | 'lan';
+
 /** Entity jedné fáze (A / B / C). */
 export interface PhaseConfig {
   /** Volitelný vlastní název (vedle Napětí / nad proudem u CT). */
@@ -49,6 +52,11 @@ export interface Shelly3emDiagramCardConfig {
    * Po potvrzení v dialogu se volá `button.press`.
    */
   reset_button?: string;
+  /**
+   * Typ připojení zařízení — LED Wi-Fi / LAN svítí podle něj i bez entity
+   * (integrace Shelly pro LAN entitu nemá, RSSI bývá vypnuté).
+   */
+  connection?: ConnectionType;
   /**
    * Síla Wi-Fi signálu (typicky RSSI v dBm).
    * Pokud je vyplněno → LED Wi-Fi svítí (hover ukáže sílu signálu).
@@ -88,6 +96,11 @@ export interface ShellyPro1DiagramCardConfig {
   temperature?: string;
   /** Firmware `update.*` — v headeru upozorní na dostupnou aktualizaci. */
   firmware_update?: string;
+  /**
+   * Typ připojení zařízení — LED Wi-Fi / LAN svítí podle něj i bez entity
+   * (integrace Shelly pro LAN entitu nemá, RSSI bývá vypnuté).
+   */
+  connection?: ConnectionType;
   /** Síla Wi-Fi signálu — LED Wi-Fi svítí (hover = hodnota). */
   wifi_signal?: string;
   /** Rychlost LAN linky — LED LAN svítí (hover = hodnota). */
