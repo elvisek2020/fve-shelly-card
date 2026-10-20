@@ -71,18 +71,6 @@ const SCHEMA = [
     icon: 'mdi:restart',
     schema: [
       {
-        name: 'connection',
-        selector: {
-          select: {
-            mode: 'dropdown',
-            options: [
-              { value: 'wifi', label: 'Wi-Fi' },
-              { value: 'lan', label: 'LAN' },
-            ],
-          },
-        },
-      },
-      {
         name: 'wifi_signal',
         selector: ENTITY,
         custom_label: 'Síla Wi-Fi signálu',
@@ -114,7 +102,6 @@ const LABELS: Record<string, string> = {
   total_energy: 'Celková energie (kWh)',
   neutral_current: 'Proud neutrálu (A)',
   reset_button: 'Reset (button.*)',
-  connection: 'Připojení',
   wifi_signal: 'Síla Wi-Fi signálu',
   lan_link_speed: 'Rychlost LAN linky',
 };
@@ -130,8 +117,6 @@ const HELPERS: Record<string, string> = {
   neutral_current: 'Volitelné — pokud je vyplněno, zobrazí se CT clamp TN vpravo.',
   reset_button:
     'Shelly button entita (typicky …_reset nebo …_restart). Klik na Reset v diagramu nejdřív zobrazí potvrzení, pak zavolá button.press.',
-  connection:
-    'Jak je Shelly připojené k síti — příslušná LED svítí i bez entity (pro LAN integrace Shelly entitu nemá).',
   wifi_signal:
     'Typicky sensor …_rssi / …_signal_strength. Když je vyplněno, LED Wi-Fi svítí; při najetí myší se ukáže síla signálu.',
   lan_link_speed:

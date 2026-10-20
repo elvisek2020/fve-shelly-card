@@ -49,7 +49,7 @@ HACS nabízí aktualizace z GitHub releases.
 1. Stáhni `shelly-3em-diagram-card.js` z posledního [release](../../releases)
 2. Zkopíruj do `/config/www/`
 3. Nastavení → Dashboardy → ⋮ → Zdroje → Přidat:
-   URL `/local/shelly-3em-diagram-card.js?v=0.4.3`, typ **JavaScript module**
+   URL `/local/shelly-3em-diagram-card.js?v=0.4.4`, typ **JavaScript module**
    (číslo verze zvyšuj při každé aktualizaci kvůli cache)
 
 ## Konfigurace
@@ -78,9 +78,9 @@ phase_c:
   power: sensor.1np_vstupni_chodba_dub_1nb_grid_ac_in_phase_c_vykon
 total_power: sensor.1np_vstupni_chodba_dub_1nb_grid_ac_in_vykon
 total_energy: sensor.1np_vstupni_chodba_dub_1nb_grid_ac_in_energie
-# Wi-Fi vs LAN — LED podle typu připojení; entita přidá hodnotu při najetí myší:
-connection: wifi
+# Wi-Fi vs LAN — podle vyplněných entit (lze i obě najednou):
 wifi_signal: sensor.dub_1nb_grid_ac_in_rssi
+lan_link_speed: sensor.dub_1nb_grid_ac_in_ethernet
 reset_button: button.dub_1nb_grid_ac_in_restart
 ```
 
@@ -93,7 +93,6 @@ reset_button: button.dub_1nb_grid_ac_in_restart
 | `total_power` | ne | Celkový výkon — vpravo nahoře |
 | `total_energy` | ne | Celková energie — vpravo nahoře pod výkonem |
 | `neutral_current` | ne | Proud neutrálu — bez něj se CT clamp **TN** nezobrazí |
-| `connection` | ne | `wifi` / `lan` — jak je Shelly připojené; příslušná LED svítí i bez entity (pro LAN integrace Shelly entitu nemá) |
 | `wifi_signal` | ne | Síla Wi-Fi (RSSI) — LED **Wi-Fi** svítí; hover = síla signálu |
 | `lan_link_speed` | ne | Rychlost LAN linky — LED **LAN** svítí; hover = rychlost |
 | `reset_button` | ne | Shelly `button.*` (reset/restart) — aktivuje klikací Reset s potvrzením |
@@ -103,9 +102,7 @@ Volitelný `name` se ukáže vedle „Napětí“ (LA/LB/LC) a nad proudem u CT 
 Vstupní linky **LA / LB / LC** jen když je u fáze vyplněné napětí (pozice zůstávají).
 CT clampy **TA / TB / TC** jen když je vyplněný proud nebo výkon — dynamicky vycentrované.
 
-**Připojení:** `connection: wifi` rozsvítí žlutou LED **Wi-Fi**, `connection: lan` zelenou LED **LAN** — i bez entity
-(hover pak ukáže „připojeno“). Vyplněný `wifi_signal` / `lan_link_speed` LED také rozsvítí a při najetí myší
-ukáže hodnotu (sílu signálu / rychlost). Entita síly signálu bývá u Shelly v HA ve výchozím stavu vypnutá.
+**Připojení:** vyplněný `wifi_signal` = Wi-Fi (žlutá LED svítí, hover = síla); vyplněný `lan_link_speed` = LAN (zelená LED svítí, hover = rychlost). Obě entity mohou být nastavené zároveň.
 
 ## Shelly Pro 1 Diagram Card
 
@@ -135,7 +132,6 @@ input_2:
   entity: binary_sensor.dub_0zd_fve_ac_in_vstup_1
 firmware_update: update.dub_0zd_fve_ac_in_firmware
 reset_button: button.dub_0zd_fve_ac_in_restartovat
-connection: wifi
 # volitelné (v HA jsou tyto entity Shelly ve výchozím stavu vypnuté):
 temperature: sensor.dub_0zd_fve_ac_in_teplota
 wifi_signal: sensor.0np_zahradni_domek_shellypro1_f8b3b7f92b48_sila_signalu
@@ -150,7 +146,6 @@ wifi_signal: sensor.0np_zahradni_domek_shellypro1_f8b3b7f92b48_sila_signalu
 | `input_1` / `input_2` | ne | Vstup SW1 / SW2 — objekt s `entity` (`binary_sensor.*`) a volitelným `name`; bez entity se vstup nezobrazí |
 | `temperature` | ne | Teplota zařízení — vpravo nahoře |
 | `firmware_update` | ne | `update.*` — při dostupné aktualizaci se vpravo nahoře ukáže „Firmware: Aktualizace“ |
-| `connection` | ne | `wifi` / `lan` — jak je Shelly připojené; příslušná LED svítí i bez entity (pro LAN integrace Shelly entitu nemá) |
 | `wifi_signal` | ne | Síla Wi-Fi (RSSI) — LED **Wi-Fi** svítí; hover = síla signálu |
 | `lan_link_speed` | ne | Rychlost LAN linky — LED **LAN** svítí; hover = rychlost |
 | `reset_button` | ne | Shelly `button.*` (restart) — aktivuje klikací Reset s potvrzením |
@@ -178,8 +173,7 @@ Stack: Lit 3 + TypeScript + Rollup (stejný jako [fve-flow-card](https://github.
 
 ## Známá omezení
 
-- LED **Power** svítí vždy; **Count** pulsuje podle |výkonu|; **Wi-Fi** / **LAN** svítí podle `connection`
-  nebo vyplněné entity. Karta skutečný stav připojení nezjišťuje — LED ukazuje nastavený typ připojení.
+- LED **Power** svítí vždy; **Count** pulsuje podle |výkonu|; **Wi-Fi** / **LAN** svítí trvale (hover = hodnota) — jen když jsou v configu příslušné entity.
 - Tlačítko **Reset** je aktivní jen když je v configu `reset_button` (`button.*`) —
   po kliknutí se zobrazí potvrzení a pak se volá `button.press`.
 - Zdánlivý výkon (VA) se **nezobrazuje**.

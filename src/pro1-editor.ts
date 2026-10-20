@@ -64,18 +64,6 @@ const SCHEMA = [
     schema: [
       { name: 'temperature', selector: SENSOR },
       { name: 'firmware_update', selector: { entity: { domain: 'update' } } },
-      {
-        name: 'connection',
-        selector: {
-          select: {
-            mode: 'dropdown',
-            options: [
-              { value: 'wifi', label: 'Wi-Fi' },
-              { value: 'lan', label: 'LAN' },
-            ],
-          },
-        },
-      },
       { name: 'wifi_signal', selector: SENSOR },
       { name: 'lan_link_speed', selector: SENSOR },
       { name: 'reset_button', selector: { entity: { domain: 'button' } } },
@@ -90,7 +78,6 @@ const LABELS: Record<string, string> = {
   confirm: 'Potvrzovat přepnutí',
   temperature: 'Teplota zařízení',
   firmware_update: 'Firmware (update.*)',
-  connection: 'Připojení',
   wifi_signal: 'Síla Wi-Fi signálu',
   lan_link_speed: 'Rychlost LAN linky',
   reset_button: 'Restart (button.*)',
@@ -103,8 +90,6 @@ const HELPERS: Record<string, string> = {
   confirm: 'Před zapnutím i vypnutím se zobrazí potvrzovací dialog.',
   temperature: 'Volitelné — typicky sensor …_teplota (v HA bývá vypnutý, zapni ho v nastavení entity).',
   firmware_update: 'Volitelné — když je dostupná nová verze, ukáže se v headeru.',
-  connection:
-    'Jak je Shelly připojené k síti — příslušná LED svítí i bez entity (pro LAN integrace Shelly entitu nemá).',
   wifi_signal: 'Volitelné — typicky sensor …_sila_signalu. LED Wi-Fi svítí, hover ukáže sílu.',
   lan_link_speed: 'Volitelné — rychlost LAN linky. LED LAN svítí, hover ukáže rychlost.',
   reset_button:

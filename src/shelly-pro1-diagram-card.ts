@@ -1,7 +1,7 @@
 import { LitElement, html, css, svg, nothing, type TemplateResult, type SVGTemplateResult } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import type { HomeAssistant, InputConfig, ShellyPro1DiagramCardConfig } from './types';
-import { connectionLed, formatEntityValue, moreInfo } from './utils';
+import { formatEntityValue, moreInfo } from './utils';
 import { openConfirmDialog } from './confirm-dialog';
 import { diagramStyles } from './diagram-styles';
 import './pro1-editor';
@@ -14,7 +14,6 @@ const CARD_VERSION = __CARD_VERSION__;
 const STUB: ShellyPro1DiagramCardConfig = {
   title: 'DUB-0ZD-FVE-AC-IN',
   switch: 'switch.dub_0zd_fve_ac_in',
-  connection: 'wifi',
   input_1: { entity: 'binary_sensor.dub_0zd_fve_ac_in_vstup_0' },
   input_2: { entity: 'binary_sensor.dub_0zd_fve_ac_in_vstup_1' },
   firmware_update: 'update.dub_0zd_fve_ac_in_firmware',
@@ -502,9 +501,8 @@ export class ShellyPro1DiagramCard extends LitElement {
   /** Status LEDs + Reset (stejný panel jako u 3EM, místo Count je Out). */
   private _renderStatusPanel(cx: number, topY: number, out: OutputState): SVGTemplateResult {
     const available = out !== 'unavailable';
-    // Nedostupné zařízení → LED připojení zhasnou stejně jako Power.
-    const wifi = connectionLed(this.hass, 'wifi', this._config?.connection, this._config?.wifi_signal);
-    const lan = connectionLed(this.hass, 'lan', this._config?.connection, this._config?.lan_link_speed);
+    const wifiOn = this._filled(this._config?.wifi_signal);
+    const lanOn = this._filled(this._config?.lan_link_speed);
     const leds: Array<{ name: string; color: string; active: boolean; title?: string }> = [
       { name: 'Power', color: '#ff5252', active: available },
       {
@@ -516,14 +514,14 @@ export class ShellyPro1DiagramCard extends LitElement {
       {
         name: 'Wi-Fi',
         color: '#ffd740',
-        active: available && wifi.active,
-        title: wifi.title,
+        active: wifiOn,
+        title: wifiOn ? `Wi-Fi: ${formatEntityValue(this.hass, this._config?.wifi_signal)}` : undefined,
       },
       {
         name: 'LAN',
         color: '#69f0ae',
-        active: available && lan.active,
-        title: lan.title,
+        active: lanOn,
+        title: lanOn ? `LAN: ${formatEntityValue(this.hass, this._config?.lan_link_speed)}` : undefined,
       },
     ];
     const rowH = 32;

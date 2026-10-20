@@ -5,6 +5,18 @@ text vydání na GitHubu — a ten Home Assistant / HACS ukazuje v okně aktuali
 
 Nejnovější verze je nahoře.
 
+## v0.4.4 — 2026-10-20
+
+### ⚠️ Změny, které vyžadují zásah
+
+- Volba **Připojení** (`connection`) z verze 0.4.3 je zrušená. LED **Wi-Fi** a **LAN** svítí zase
+  jen podle vyplněné entity (`wifi_signal` / `lan_link_speed`), protože bez dat nemají co ukazovat.
+  Pokud jsi `connection` nastavil, z YAML ho můžeš odebrat — karta ho ignoruje.
+- U Shelly Pro 1 LED připojení opět nezávisí na dostupnosti výstupu (stejně jako před 0.4.3).
+
+> [!TIP]
+> Po aktualizaci obnov stránku bez cache.
+
 ## v0.4.3 — 2026-10-20
 
 ### ✨ Novinky

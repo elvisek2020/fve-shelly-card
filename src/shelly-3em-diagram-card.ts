@@ -3,10 +3,10 @@ import { customElement, property, state } from 'lit/decorators.js';
 import type { HomeAssistant, PhaseConfig, Shelly3emDiagramCardConfig } from './types';
 import {
   clampPulseDuration,
-  connectionLed,
   countBlinkDuration,
   formatCurrent,
   formatEnergy,
+  formatEntityValue,
   formatPower,
   formatVoltage,
   moreInfo,
@@ -354,7 +354,7 @@ export class Shelly3emDiagramCard extends LitElement {
 
   /**
    * Status LEDs + Reset.
-   * Wi-Fi / LAN svítí podle `connection` nebo entit v configu (hover = hodnota).
+   * Wi-Fi / LAN svítí trvale když jsou entity v configu (hover = hodnota).
    * Count = krátký červený impuls podle |výkonu|.
    */
   private _renderStatusPanel(cx: number, topY: number): SVGTemplateResult {
@@ -363,8 +363,14 @@ export class Shelly3emDiagramCard extends LitElement {
     const countFlash = 0.35; // s — délka impulzu
     const countOnEnd =
       countPeriod > 0 ? Math.min(0.49, countFlash / countPeriod) : 0;
-    const wifi = connectionLed(this.hass, 'wifi', this._config?.connection, this._config?.wifi_signal);
-    const lan = connectionLed(this.hass, 'lan', this._config?.connection, this._config?.lan_link_speed);
+    const wifiOn = this._filled(this._config?.wifi_signal);
+    const lanOn = this._filled(this._config?.lan_link_speed);
+    const wifiTip = wifiOn
+      ? `Wi-Fi: ${formatEntityValue(this.hass, this._config?.wifi_signal)}`
+      : undefined;
+    const lanTip = lanOn
+      ? `LAN: ${formatEntityValue(this.hass, this._config?.lan_link_speed)}`
+      : undefined;
 
     const leds: Array<{
       name: string;
@@ -377,14 +383,14 @@ export class Shelly3emDiagramCard extends LitElement {
       {
         name: 'Wi-Fi',
         color: '#ffd740',
-        active: wifi.active,
-        title: wifi.title,
+        active: wifiOn,
+        title: wifiTip,
       },
       {
         name: 'LAN',
         color: '#69f0ae',
-        active: lan.active,
-        title: lan.title,
+        active: lanOn,
+        title: lanTip,
       },
       {
         name: 'Count',
