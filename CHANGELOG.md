@@ -5,6 +5,13 @@ text vydání na GitHubu — a ten Home Assistant / HACS ukazuje v okně aktuali
 
 Nejnovější verze je nahoře.
 
+## v0.4.6 — 2026-11-05
+
+### 🎨 Vzhled
+
+- Balíček se v HACS (Marketplace a Aktualizace) jmenuje **Shelly karty (EK)**. Názvy karet ve
+  výběru karet, typy karet v dashboardech ani soubor `shelly-3em-diagram-card.js` se nemění.
+
 ## v0.4.5 — 2026-11-05
 
 ### 🐛 Opravy

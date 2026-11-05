@@ -1,4 +1,4 @@
-# Shelly Diagram Cards
+# Shelly karty (EK)
 
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
 [![Release](https://img.shields.io/github/v/release/elvisek2020/fve-shelly-card)](https://github.com/elvisek2020/fve-shelly-card/releases)
@@ -13,7 +13,7 @@ Shelly Cloud „Diagram view“. Jeden soubor obsahuje dvě karty:
 - **Shelly 3EM Diagram Card** — live diagram **Shelly Pro 3EM** (napětí, proud a výkon po fázích)
 - **[Shelly Pro 1 Diagram Card](#shelly-pro-1-diagram-card)** — ovládání relé **Shelly Pro 1 / Pro 1 UL**
 
-![Shelly Diagram Cards — náhled](docs/preview.png)
+![Shelly karty (EK) — náhled](docs/preview.png)
 
 Shelly 3EM Diagram Card:
 
@@ -39,7 +39,7 @@ Konkrétní entity se mapují v YAML — karta není závislá na přesných ná
 
 1. HACS → tři tečky vpravo nahoře → **Custom repositories**
 2. Vlož URL `https://github.com/elvisek2020/fve-shelly-card`, kategorie **Dashboard**
-3. Nainstaluj **Shelly Diagram Cards**
+3. Nainstaluj **Shelly karty (EK)**
 4. Obnov stránku prohlížeče bez cache.
 
 HACS nabízí aktualizace z GitHub releases.
@@ -49,7 +49,7 @@ HACS nabízí aktualizace z GitHub releases.
 1. Stáhni `shelly-3em-diagram-card.js` z posledního [release](../../releases)
 2. Zkopíruj do `/config/www/`
 3. Nastavení → Dashboardy → ⋮ → Zdroje → Přidat:
-   URL `/local/shelly-3em-diagram-card.js?v=0.4.5`, typ **JavaScript module**
+   URL `/local/shelly-3em-diagram-card.js?v=0.4.6`, typ **JavaScript module**
    (číslo verze zvyšuj při každé aktualizaci kvůli cache)
 
 ## Konfigurace
