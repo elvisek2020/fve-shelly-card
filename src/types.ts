@@ -5,8 +5,27 @@ export interface HassEntity {
   attributes: Record<string, unknown>;
 }
 
+/** Záznam z `hass.entities` (zobrazovací registr entit). */
+export interface HassEntityRegistryDisplayEntry {
+  entity_id: string;
+  /** Vlastní název entity bez zařízení; chybí u hlavní entity zařízení. */
+  name?: string | null;
+  device_id?: string | null;
+}
+
+/** Záznam z `hass.devices` (registr zařízení). */
+export interface HassDeviceRegistryEntry {
+  id: string;
+  name?: string | null;
+  name_by_user?: string | null;
+}
+
 export interface HomeAssistant {
   states: Record<string, HassEntity>;
+  /** Registr entit pro zobrazení (HA frontend). */
+  entities?: Record<string, HassEntityRegistryDisplayEntry>;
+  /** Registr zařízení (HA frontend). */
+  devices?: Record<string, HassDeviceRegistryEntry>;
   language?: string;
   locale?: { language?: string };
   formatEntityState?: (stateObj: HassEntity) => string;

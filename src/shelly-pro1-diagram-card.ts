@@ -1,7 +1,7 @@
 import { LitElement, html, css, svg, nothing, type TemplateResult, type SVGTemplateResult } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import type { HomeAssistant, InputConfig, ShellyPro1DiagramCardConfig } from './types';
-import { formatEntityValue, moreInfo } from './utils';
+import { entityDisplayName, formatEntityValue, moreInfo } from './utils';
 import { openConfirmDialog } from './confirm-dialog';
 import { diagramStyles } from './diagram-styles';
 import './pro1-editor';
@@ -219,11 +219,9 @@ export class ShellyPro1DiagramCard extends LitElement {
       return html`<ha-card><div class="warn">Vyplň entitu výstupu (switch).</div></ha-card>`;
     }
 
-    const switchObj = this.hass?.states[this._config.switch];
+    // Vlastní titulek má přednost, jinak název jako ve vestavěných kartách HA.
     const title =
-      this._config.title ??
-      (switchObj?.attributes.friendly_name as string | undefined) ??
-      'Shelly Pro 1';
+      this._config.title ?? entityDisplayName(this.hass, this._config.switch) ?? 'Shelly Pro 1';
     const temp = this._filled(this._config.temperature)
       ? formatEntityValue(this.hass, this._config.temperature)
       : null;

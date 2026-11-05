@@ -5,6 +5,18 @@ text vydání na GitHubu — a ten Home Assistant / HACS ukazuje v okně aktuali
 
 Nejnovější verze je nahoře.
 
+## v0.4.5 — 2026-11-05
+
+### 🐛 Opravy
+
+- **Shelly Pro 1 Diagram Card** bez vlastního titulku ukazuje název stejně jako vestavěné karty
+  Home Assistantu 2026.11 — z registru entit a zařízení („Zařízení Entita“, u hlavní entity jen
+  název zařízení). Atribut `friendly_name`, který HA plánuje zrušit, zůstává jen jako záloha.
+  Vlastní `title` z konfigurace má dál přednost.
+
+> [!TIP]
+> Po aktualizaci obnov stránku bez cache.
+
 ## v0.4.4 — 2026-10-20
 
 ### ⚠️ Změny, které vyžadují zásah

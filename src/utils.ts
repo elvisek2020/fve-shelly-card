@@ -60,6 +60,30 @@ export function formatEnergy(kwh: number): string {
   return `${nf1.format(kwh)} kWh`;
 }
 
+/**
+ * Název entity jako ve vestavěných kartách HA 2026.11+: „Zařízení Entita“ z registru
+ * entit a zařízení; hlavní entita zařízení (bez vlastního názvu) = jen název zařízení.
+ * `friendly_name` je jen záloha pro starší HA (atribut je plánovaný ke zrušení).
+ */
+export function entityDisplayName(
+  hass: HomeAssistant | undefined,
+  entityId: string | undefined,
+): string | undefined {
+  if (!hass || !entityId) return undefined;
+  const entry = hass.entities?.[entityId];
+  if (entry) {
+    const device = entry.device_id ? hass.devices?.[entry.device_id] : undefined;
+    const deviceName = (device?.name_by_user || device?.name)?.trim() || undefined;
+    const entityName = entry.name?.trim() || undefined;
+    if (deviceName && entityName) {
+      return entityName.startsWith(deviceName) ? entityName : `${deviceName} ${entityName}`;
+    }
+    if (deviceName || entityName) return deviceName ?? entityName;
+  }
+  const friendly = hass.states[entityId]?.attributes.friendly_name;
+  return typeof friendly === 'string' && friendly.trim() ? friendly.trim() : undefined;
+}
+
 /** Surový stav entity + jednotka (např. RSSI / link speed). */
 export function formatEntityValue(
   hass: HomeAssistant | undefined,
